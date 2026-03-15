@@ -71,6 +71,7 @@ File: `infra/traefik/docker-compose.yml`
 - Dashboard exposed via Traefik labels on the `dashboard` entrypoint
 - External network `traefik_webgateway` (created by bootstrap playbook)
 - Dashboard host read from `${TRAEFIK_DASHBOARD_HOST}` env var (documented in `.env.example`)
+- Dashboard has no built-in auth — access is restricted by cloud firewall rules limiting port 8080 to internal/Tailscale IPs only (documented in `.env.example`)
 - All config via compose `command` args (no separate static config file — config is minimal enough)
 
 ## Infra: Ansible Playbooks
@@ -103,9 +104,8 @@ Parameterized, reusable across all services:
 - Takes `app_name` via `--extra-vars`
 - Ensures `/opt/apps/{{ app_name }}/` exists
 - Copies the app's `docker-compose.yml` to server
-- Logs in to container registry (token passed as extra var)
+- Logs in to container registry (`gh_token` passed as extra var — a GitHub PAT with `read:packages` scope, since `GITHUB_TOKEN` from Actions cannot authenticate across repos)
 - Runs `docker compose pull && docker compose up -d`
-- Optionally waits for container health check
 
 ### `inventory/hosts.yml`
 
@@ -125,6 +125,18 @@ all:
   vars:
     ansible_user: deploy
     ansible_python_interpreter: /usr/bin/python3
+```
+
+### `inventory/group_vars/all.yml`
+
+Shared variables used across playbooks:
+
+```yaml
+deploy_base_dir: /opt/apps
+docker_registry: ghcr.io
+docker_log_max_size: 50m
+docker_log_max_file: "3"
+traefik_deploy_dir: /opt/traefik
 ```
 
 ### `ansible.cfg`
@@ -152,7 +164,7 @@ All three templates share the same `cookiecutter.json`:
 ```
 
 - `service_type`: choice variable — Cruft prompts user to pick external or internal
-- `traefik_host`: only relevant when `service_type == "external"`
+- `traefik_host`: Cookiecutter always prompts for this (no conditional prompting in cookiecutter.json). The default value is reasonable, and the value is simply ignored in the template when `service_type == "internal"`. The generated README notes this.
 
 ## Templates: Generated Project Structure
 
@@ -183,7 +195,7 @@ Uses Jinja2 conditionals in the template:
 
 **Go (`templates/go-service`):**
 - `cmd/server/main.go`: `net/http` stdlib server, single `/` handler returning `{"service": "<name>", "status": "ok"}`
-- `go.mod`: module `github.com/{{ org }}/{{ slug }}`
+- `go.mod`: module `github.com/{{ cookiecutter.github_org }}/{{ cookiecutter.project_slug }}`
 - Dockerfile: two-stage — `golang:1.23-alpine` builder, `gcr.io/distroless/static-debian12` runtime (~10MB)
 
 **Node.js (`templates/node-service`):**
@@ -214,13 +226,18 @@ File: `.github/workflows/ci-cd.yml` (generated inside each scaffolded project)
 **Job 2: `deploy`** (depends on build-and-push)
 - Set up Tailscale using `tailscale/github-action` with `TAILSCALE_AUTHKEY` secret
 - Install Ansible via pip
-- Run inline deploy playbook (self-contained copy of `deploy-app.yml` so the app deploys independently of the infra repo)
-- Targets production hosts
+- Write SSH private key from `ANSIBLE_SSH_PRIVATE_KEY` secret to a temp file
+- Write an inline inventory from `DEPLOY_HOST` secret (Tailscale IP) — this keeps the workflow self-contained without needing the infra repo
+- Run an inline deploy playbook embedded in the workflow YAML (a simplified copy of `deploy-app.yml` that pulls and restarts the service's own compose stack)
+- The inline playbook: ensures `/opt/apps/{{ cookiecutter.project_slug }}/` exists, copies `docker-compose.yml`, logs in to registry, runs `docker compose pull && docker compose up -d`
 
 **Required GitHub secrets:**
 - `TAILSCALE_AUTHKEY`: ephemeral key for CI runner to join Tailscale network
-- `GITHUB_TOKEN`: auto-provided, used for ghcr.io login
+- `GITHUB_TOKEN`: auto-provided, used for ghcr.io login on the build job
+- `DEPLOY_REGISTRY_TOKEN`: GitHub PAT with `read:packages` scope for the deploy target to pull images
 - `ANSIBLE_SSH_PRIVATE_KEY`: SSH key for Ansible to connect to servers via Tailscale
+- `DEPLOY_HOST`: Tailscale IP of the target server
+- `DEPLOY_USER`: SSH user on the target server (default: `deploy`)
 
 ## Documentation
 
