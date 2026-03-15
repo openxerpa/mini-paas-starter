@@ -70,11 +70,22 @@ File: `infra/traefik/docker-compose.yml`
 - Docker socket mounted read-only (`/var/run/docker.sock:/var/run/docker.sock:ro`)
 - Dashboard exposed via Traefik labels on the `dashboard` entrypoint
 - External network `traefik_webgateway` (created by bootstrap playbook)
-- Dashboard host read from `${TRAEFIK_DASHBOARD_HOST}` env var (documented in `.env.example`)
-- Dashboard has no built-in auth — access is restricted by cloud firewall rules limiting port 8080 to internal/Tailscale IPs only (documented in `.env.example`)
+- Dashboard host read from `${TRAEFIK_DASHBOARD_HOST}` env var
+- Dashboard has no built-in auth — access is restricted by cloud firewall rules limiting port 8080 to internal/Tailscale IPs only
+
+File: `infra/traefik/.env.example`
+
+```
+# Hostname for the Traefik dashboard (routed via Traefik labels)
+TRAEFIK_DASHBOARD_HOST=traefik.yourdomain.com
+```
+
+This is the only env var. The rest of the Traefik config is static in compose `command` args.
 - All config via compose `command` args (no separate static config file — config is minimal enough)
 
 ## Infra: Ansible Playbooks
+
+All playbooks are idempotent — safe to re-run without side effects. Ansible modules like `file`, `copy`, and `template` are inherently idempotent; `command` tasks use `creates` or conditional checks where needed.
 
 ### `playbooks/bootstrap.yml` — Server initialization
 
@@ -187,8 +198,16 @@ Each scaffolded project contains:
 
 ### docker-compose.yml
 
-Uses Jinja2 conditionals in the template:
-- `service_type == "external"`: includes Traefik labels (`traefik.enable=true`, router rule with `traefik_host`, load balancer server port), exposed on `webgateway` network
+Uses Jinja2 conditionals in the template. Both modes declare the `traefik_webgateway` network as external:
+
+```yaml
+networks:
+  webgateway:
+    external: true
+    name: traefik_webgateway
+```
+
+- `service_type == "external"`: includes Traefik labels (`traefik.enable=true`, router rule with `traefik_host`, load balancer server port), service attached to `webgateway` network
 - `service_type == "internal"`: no labels, no ports, just `webgateway` network with container name for DNS discovery
 
 ### Language-Specific App Skeletons
@@ -229,7 +248,7 @@ File: `.github/workflows/ci-cd.yml` (generated inside each scaffolded project)
 - Write SSH private key from `ANSIBLE_SSH_PRIVATE_KEY` secret to a temp file
 - Write an inline inventory from `DEPLOY_HOST` secret (Tailscale IP) — this keeps the workflow self-contained without needing the infra repo
 - Run an inline deploy playbook embedded in the workflow YAML (a simplified copy of `deploy-app.yml` that pulls and restarts the service's own compose stack)
-- The inline playbook: ensures `/opt/apps/{{ cookiecutter.project_slug }}/` exists, copies `docker-compose.yml`, logs in to registry, runs `docker compose pull && docker compose up -d`
+- The inline playbook is a stripped-down version of `deploy-app.yml` with hardcoded values instead of `group_vars` references: it uses `DEPLOY_HOST`/`DEPLOY_USER` secrets as the inventory, hardcodes the app name from the cookiecutter slug, and performs the same steps — ensure dir, copy compose file, registry login, `docker compose pull && docker compose up -d`
 
 **Required GitHub secrets:**
 - `TAILSCALE_AUTHKEY`: ephemeral key for CI runner to join Tailscale network
