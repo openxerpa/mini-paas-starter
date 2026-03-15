@@ -110,14 +110,15 @@ Run once on a fresh server:
 - Copy `infra/traefik/.env` to server (operator must create this from `.env.example` before running the playbook — documented in README quick start)
 - Run `docker compose pull && docker compose up -d`
 
-### `playbooks/deploy-app.yml` — Generic app rolling update
+### `playbooks/deploy-app.yml` — Generic app deploy
 
-Parameterized, reusable across all services. Invoked from the app's repo root:
-`ansible-playbook -i <infra-repo>/infra/ansible/inventory/hosts.yml <infra-repo>/infra/ansible/playbooks/deploy-app.yml -e "app_name=my-service gh_token=ghp_..."`
+Parameterized, reusable across all services. Example invocation:
+`ansible-playbook -i inventory/hosts.yml playbooks/deploy-app.yml -l production -e "app_name=my-service compose_src=/path/to/app/docker-compose.yml gh_token=ghp_..."`
 
-- Takes `app_name` and `gh_token` via `--extra-vars`
+- Takes `app_name`, `compose_src` (absolute path to the app's docker-compose.yml), and `gh_token` via `--extra-vars`
+- Target environment is selected via `-l <group>` (e.g. `-l production` or `-l staging`)
 - Ensures `/opt/apps/{{ app_name }}/` exists
-- Copies `./docker-compose.yml` (from the current working directory, i.e. the app repo root) to the server
+- Copies `{{ compose_src }}` to the server (Ansible `copy` module `src` parameter)
 - Logs in to container registry (`gh_token` passed as extra var — a GitHub PAT with `read:packages` scope, since `GITHUB_TOKEN` from Actions cannot authenticate across repos)
 - Runs `docker compose pull && docker compose up -d`
 
