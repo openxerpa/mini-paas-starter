@@ -101,7 +101,7 @@ Run once on a fresh server:
 - Install Tailscale via official package repo
 - Authenticate with auth key passed as `--extra-vars "tailscale_auth_key=tskey-..."` (never stored in files)
 - Enable IP forwarding if needed
-- Verify connectivity
+- Verify connectivity via `tailscale status` (checks that the node is connected to the tailnet)
 
 ### `playbooks/traefik.yml` — Deploy/update Traefik
 
@@ -207,8 +207,10 @@ networks:
     name: traefik_webgateway
 ```
 
+Both modes include `deploy.resources.limits.memory: {{ cookiecutter.memory_limit }}` for OOM protection.
+
 - `service_type == "external"`: includes Traefik labels (`traefik.enable=true`, router rule with `traefik_host`, load balancer server port), service attached to `webgateway` network
-- `service_type == "internal"`: no labels, no ports, just `webgateway` network with container name for DNS discovery
+- `service_type == "internal"`: no labels, no ports, `container_name: {{ cookiecutter.project_slug }}` for stable DNS discovery, attached to `webgateway` network. Other services call it via `http://{{ cookiecutter.project_slug }}:<port>`.
 
 ### Language-Specific App Skeletons
 
@@ -248,7 +250,13 @@ File: `.github/workflows/ci-cd.yml` (generated inside each scaffolded project)
 - Write SSH private key from `ANSIBLE_SSH_PRIVATE_KEY` secret to a temp file
 - Write an inline inventory from `DEPLOY_HOST` secret (Tailscale IP) — this keeps the workflow self-contained without needing the infra repo
 - Run an inline deploy playbook embedded in the workflow YAML (a simplified copy of `deploy-app.yml` that pulls and restarts the service's own compose stack)
-- The inline playbook is a stripped-down version of `deploy-app.yml` with hardcoded values instead of `group_vars` references: it uses `DEPLOY_HOST`/`DEPLOY_USER` secrets as the inventory, hardcodes the app name from the cookiecutter slug, and performs the same steps — ensure dir, copy compose file, registry login, `docker compose pull && docker compose up -d`
+- The inline playbook is written as a literal YAML block in the workflow step (written to a temp file, then executed with `ansible-playbook`). It contains exactly these tasks:
+  1. `ansible.builtin.file` — ensure `/opt/apps/<slug>/` exists
+  2. `ansible.builtin.copy` — copy `docker-compose.yml` from the repo checkout to the deploy dir
+  3. `ansible.builtin.command` — `docker login` to the registry using `DEPLOY_REGISTRY_TOKEN`
+  4. `ansible.builtin.command` — `docker compose pull && docker compose up -d` in the deploy dir
+- Inventory is a one-line inline string: `{{ secrets.DEPLOY_HOST }},` (trailing comma makes Ansible treat it as a host list)
+- Connection vars: `ansible_user={{ secrets.DEPLOY_USER }}`, SSH key from `ANSIBLE_SSH_PRIVATE_KEY`
 
 **Required GitHub secrets:**
 - `TAILSCALE_AUTHKEY`: ephemeral key for CI runner to join Tailscale network
