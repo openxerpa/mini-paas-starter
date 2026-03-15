@@ -106,15 +106,18 @@ Run once on a fresh server:
 ### `playbooks/traefik.yml` — Deploy/update Traefik
 
 - Ensure `/opt/traefik/` directory exists
-- Copy `infra/traefik/docker-compose.yml` and `.env` to server
+- Copy `infra/traefik/docker-compose.yml` to server
+- Copy `infra/traefik/.env` to server (operator must create this from `.env.example` before running the playbook — documented in README quick start)
 - Run `docker compose pull && docker compose up -d`
 
 ### `playbooks/deploy-app.yml` — Generic app rolling update
 
-Parameterized, reusable across all services:
-- Takes `app_name` via `--extra-vars`
+Parameterized, reusable across all services. Invoked from the app's repo root:
+`ansible-playbook -i <infra-repo>/infra/ansible/inventory/hosts.yml <infra-repo>/infra/ansible/playbooks/deploy-app.yml -e "app_name=my-service gh_token=ghp_..."`
+
+- Takes `app_name` and `gh_token` via `--extra-vars`
 - Ensures `/opt/apps/{{ app_name }}/` exists
-- Copies the app's `docker-compose.yml` to server
+- Copies `./docker-compose.yml` (from the current working directory, i.e. the app repo root) to the server
 - Logs in to container registry (`gh_token` passed as extra var — a GitHub PAT with `read:packages` scope, since `GITHUB_TOKEN` from Actions cannot authenticate across repos)
 - Runs `docker compose pull && docker compose up -d`
 
@@ -207,7 +210,7 @@ networks:
     name: traefik_webgateway
 ```
 
-Both modes include `deploy.resources.limits.memory: {{ cookiecutter.memory_limit }}` for OOM protection.
+Both modes include `deploy.resources.limits.memory: {{ cookiecutter.memory_limit }}` for OOM protection. The generated `.env.example` contains `PORT={{ cookiecutter.service_port }}` as a reference — the stdlib skeletons read the port from this env var. Teams add their own app-specific vars as needed.
 
 - `service_type == "external"`: includes Traefik labels (`traefik.enable=true`, router rule with `traefik_host`, load balancer server port), service attached to `webgateway` network
 - `service_type == "internal"`: no labels, no ports, `container_name: {{ cookiecutter.project_slug }}` for stable DNS discovery, attached to `webgateway` network. Other services call it via `http://{{ cookiecutter.project_slug }}:<port>`.
@@ -273,8 +276,9 @@ File: `.github/workflows/ci-cd.yml` (generated inside each scaffolded project)
 - Prerequisites: Docker, Ansible, Tailscale, Cruft/Cookiecutter
 - Quick start workflows:
   1. Bootstrap a server: `ansible-playbook infra/ansible/playbooks/bootstrap.yml`
-  2. Deploy Traefik: `ansible-playbook infra/ansible/playbooks/traefik.yml`
-  3. Scaffold a new app: `cruft create ./templates/go-service`
+  2. Configure Traefik: `cp infra/traefik/.env.example infra/traefik/.env` and set `TRAEFIK_DASHBOARD_HOST`
+  3. Deploy Traefik: `ansible-playbook infra/ansible/playbooks/traefik.yml`
+  4. Scaffold a new app: `cruft create ./templates/go-service`
 - Directory overview table
 - Link to `docs/architecture.md`
 
