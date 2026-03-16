@@ -99,7 +99,7 @@ Each template gets a language-appropriate test job with dependency caching.
 | Template | Setup action | Test command | Cache |
 |----------|-------------|-------------|-------|
 | Go | `actions/setup-go@v6` | `go test ./...` | Go module cache (built-in) |
-| Node | `actions/setup-node@v4` + `pnpm/action-setup@v4` | `pnpm install --frozen-lockfile && pnpm test` | pnpm store (`pnpm/action-setup` built-in) |
+| Node | `actions/setup-node@v6` + `pnpm/action-setup@v4` | `pnpm install --frozen-lockfile && pnpm test` | pnpm store (`pnpm/action-setup` built-in) |
 | Python | `astral-sh/setup-uv@v7` | `uv pip install --system -r requirements.txt && pytest` | uv cache (`setup-uv` built-in) |
 
 **Empty test suites**: Go exits 0 on "no test files". Node has a placeholder test script. Python uses `pytest || test $? -eq 5` to treat "no tests collected" (exit 5) as success.
@@ -205,9 +205,19 @@ The workflow invokes the committed playbook with:
 - **Variables**: Passed as `-e` extra vars — `compose_src`, registry credentials, `traefik_host`, and `image_tag`
 - **DEPLOY_USER**: Falls back to `root` when the secret is not set
 
-### Cached Ansible Installation
+### Ansible Installation via uv
 
-Ansible is installed via pip with `actions/setup-python` + pip cache, avoiding a fresh install every run.
+Ansible is installed via `astral-sh/setup-uv@v7` + `uv tool install`, replacing the slower `actions/setup-python` + pip approach:
+
+```yaml
+- uses: astral-sh/setup-uv@v7
+  with:
+    enable-cache: true
+
+- run: uv tool install ansible-core --with ansible
+```
+
+This is 10-100x faster than pip for package installation, and the uv cache is built-in. It also keeps the pipeline consistent — the Python test job already uses `setup-uv`.
 
 ### Post-deploy Health Check
 
