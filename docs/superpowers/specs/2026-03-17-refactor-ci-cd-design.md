@@ -57,7 +57,40 @@ The `prepare` job replaces 4 if/else blocks with a single `case` statement outpu
 
 `production` is used as the environment name because GitHub gives it a deploy shield icon. `prod` is used as tag prefix for brevity.
 
+The traefik_host pattern intentionally changes from the previous `<slug>-<env>.<domain>` to `<slug>.<env>.<domain>` — the environment segment moves from a slug suffix to a subdomain level, which is cleaner when the base domain already implies the environment.
+
 All downstream jobs reference `needs.prepare.outputs.*` — one source of truth, no re-derivation.
+
+**Unsupported branches**: If `github.ref_name` doesn't match `main`, `dev`, or `test`, the `case` statement falls through to a default that prints an error and exits 1, failing the workflow immediately with a clear message.
+
+**Example**:
+
+```yaml
+- name: Resolve environment
+  id: env
+  run: |
+    case "${{ github.ref_name }}" in
+      main)
+        echo "env_name=production" >> $GITHUB_OUTPUT
+        echo "image_tag_prefix=prod" >> $GITHUB_OUTPUT
+        echo "traefik_host=<slug>.<base_domain_prod>" >> $GITHUB_OUTPUT
+        ;;
+      dev)
+        echo "env_name=dev" >> $GITHUB_OUTPUT
+        echo "image_tag_prefix=dev" >> $GITHUB_OUTPUT
+        echo "traefik_host=<slug>.dev.<base_domain_dev>" >> $GITHUB_OUTPUT
+        ;;
+      test)
+        echo "env_name=test" >> $GITHUB_OUTPUT
+        echo "image_tag_prefix=test" >> $GITHUB_OUTPUT
+        echo "traefik_host=<slug>.test.<base_domain_test>" >> $GITHUB_OUTPUT
+        ;;
+      *)
+        echo "::error::Unsupported branch '${{ github.ref_name }}'"
+        exit 1
+        ;;
+    esac
+```
 
 ## Test Job
 
@@ -91,7 +124,7 @@ Each template gets a language-appropriate test job with dependency caching.
 | `:latest` (overwritten by all branches) | `:dev-latest` |
 | `:<sha>` | `:dev-abc1234` |
 
-Tags and OCI labels are generated via `docker/metadata-action@v6`:
+Tags use **short SHA** (7 characters) for readability. Tags and OCI labels are generated via `docker/metadata-action@v6`:
 
 ```yaml
 - uses: docker/metadata-action@v6
@@ -100,10 +133,10 @@ Tags and OCI labels are generated via `docker/metadata-action@v6`:
     images: <registry>/<owner>/<slug>
     tags: |
       type=raw,value=${{ needs.prepare.outputs.image_tag_prefix }}-latest
-      type=raw,value=${{ needs.prepare.outputs.image_tag_prefix }}-${{ github.sha }}
+      type=sha,prefix=${{ needs.prepare.outputs.image_tag_prefix }}-
 ```
 
-The metadata action also generates standard OCI labels (`org.opencontainers.image.source`, `revision`, `created`) automatically, which aids image traceability.
+The `type=sha` directive generates a short SHA tag by default (7 chars). The metadata action also generates standard OCI labels (`org.opencontainers.image.source`, `revision`, `created`) automatically, which aids image traceability.
 
 GHA build cache (`cache-from: type=gha`, `cache-to: type=gha`) is retained.
 
@@ -129,6 +162,10 @@ The deploy job declares `environment: ${{ needs.prepare.outputs.env_name }}`, en
 
 `DEPLOY_USER` defaults to `root` when not set — pragmatic for starter kit usage where most VPS providers give root by default and `bootstrap.yml` does not create a dedicated deploy user.
 
+### Tailscale
+
+The Tailscale authentication step is unchanged from the current workflow: `tailscale/github-action@v4` with `TAILSCALE_OAUTH_CLIENT_ID` and `TAILSCALE_OAUTH_SECRET` (repo-level secrets, shared across environments).
+
 ### Committed Playbook
 
 The inline heredoc is replaced by a committed `.github/deploy.yml` Ansible playbook. Tasks:
@@ -141,6 +178,32 @@ The inline heredoc is replaced by a committed `.github/deploy.yml` Ansible playb
 6. Health check: `docker compose ps` verifies the container is `running`
 
 The workflow step shrinks from 20+ lines to a single `ansible-playbook` call.
+
+### Playbook Invocation Interface
+
+The workflow invokes the committed playbook with:
+
+```yaml
+- name: Run deploy
+  env:
+    ANSIBLE_HOST_KEY_CHECKING: "False"
+  run: |
+    ansible_user="${{ secrets.DEPLOY_USER || 'root' }}"
+    printf '[all]\n%s\n' "${{ secrets.SERVER_IP }}" > /tmp/inventory.yml
+    ansible-playbook -i /tmp/inventory.yml .github/deploy.yml \
+      -e ansible_user="$ansible_user" \
+      -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
+      -e compose_src=$GITHUB_WORKSPACE/docker-compose.yml \
+      -e deploy_registry_user=${{ github.repository_owner }} \
+      -e deploy_registry_token=${{ secrets.DEPLOY_REGISTRY_TOKEN }} \
+      -e traefik_host=${{ needs.prepare.outputs.traefik_host }} \
+      -e image_tag=${{ needs.prepare.outputs.image_tag_prefix }}-latest
+```
+
+- **Inventory**: Dynamic, built from `SERVER_IP` environment secret written to `/tmp/inventory.yml`
+- **SSH key**: Written from `SSH_KEY` environment secret to `~/.ssh/id_rsa` in a prior step
+- **Variables**: Passed as `-e` extra vars — `compose_src`, registry credentials, `traefik_host`, and `image_tag`
+- **DEPLOY_USER**: Falls back to `root` when the secret is not set
 
 ### Cached Ansible Installation
 
