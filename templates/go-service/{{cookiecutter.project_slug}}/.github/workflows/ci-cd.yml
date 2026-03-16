@@ -1,0 +1,95 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: {{ cookiecutter.docker_registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: |
+            {{ cookiecutter.docker_registry }}/${{ github.repository_owner }}/{{ cookiecutter.project_slug }}:latest
+            {{ cookiecutter.docker_registry }}/${{ github.repository_owner }}/{{ cookiecutter.project_slug }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          auth-key: ${{ secrets.TAILSCALE_AUTHKEY }}
+
+      - name: Install Ansible
+        run: pip install ansible
+
+      - name: Write SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.ANSIBLE_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Write inventory
+        run: |
+          echo "${{ secrets.DEPLOY_HOST }}," > /tmp/inventory.yml
+
+      - name: Write deploy playbook
+        run: |
+          cat > /tmp/deploy.yml << 'PLAYBOOK'
+          - hosts: all
+            become: true
+            vars:
+              deploy_dir: /opt/apps/{{ cookiecutter.project_slug }}
+              docker_registry: {{ cookiecutter.docker_registry }}
+            tasks:
+              - ansible.builtin.file:
+                  path: "{{ deploy_dir }}"
+                  state: directory
+                  mode: "0755"
+              - ansible.builtin.copy:
+                  src: docker-compose.yml
+                  dest: "{{ deploy_dir }}/docker-compose.yml"
+                  mode: "0644"
+              - ansible.builtin.command:
+                  cmd: docker login {{ cookiecutter.docker_registry }} -u {{ deploy_registry_user }} -p {{ deploy_registry_token }}
+                  no_log: true
+              - ansible.builtin.command:
+                  cmd: docker compose pull && docker compose up -d
+                  chdir: "{{ deploy_dir }}"
+          PLAYBOOK
+
+      - name: Run deploy
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+        run: |
+          ansible-playbook -i /tmp/inventory.yml /tmp/deploy.yml \
+            -e ansible_user=${{ secrets.DEPLOY_USER }} \
+            -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
+            -e deploy_registry_user=${{ github.repository_owner }} \
+            -e deploy_registry_token=${{ secrets.DEPLOY_REGISTRY_TOKEN }}

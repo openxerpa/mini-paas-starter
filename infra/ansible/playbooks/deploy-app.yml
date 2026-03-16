@@ -1,0 +1,31 @@
+---
+- name: Deploy application via Docker Compose
+  hosts: all
+  become: true
+  vars:
+    app_name: ""
+    compose_src: ""
+    gh_token: ""
+    deploy_registry_user: ""  # GitHub username for ghcr.io login
+  tasks:
+    - name: Ensure app deploy directory exists
+      ansible.builtin.file:
+        path: "{{ deploy_base_dir }}/{{ app_name }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy docker-compose.yml to server
+      ansible.builtin.copy:
+        src: "{{ compose_src }}"
+        dest: "{{ deploy_base_dir }}/{{ app_name }}/docker-compose.yml"
+        mode: "0644"
+
+    - name: Login to container registry
+      ansible.builtin.command:
+        cmd: docker login {{ docker_registry }} -u {{ deploy_registry_user }} -p {{ gh_token }}
+      no_log: true
+
+    - name: Pull and start application
+      ansible.builtin.command:
+        cmd: docker compose pull && docker compose up -d
+        chdir: "{{ deploy_base_dir }}/{{ app_name }}"

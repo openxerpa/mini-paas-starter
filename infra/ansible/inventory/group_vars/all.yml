@@ -1,0 +1,5 @@
+deploy_base_dir: /opt/apps
+docker_registry: ghcr.io
+docker_log_max_size: 50m
+docker_log_max_file: "3"
+traefik_deploy_dir: /opt/traefik

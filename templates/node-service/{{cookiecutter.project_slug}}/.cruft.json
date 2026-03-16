@@ -1,0 +1,19 @@
+{
+  "template": "https://github.com/{{ cookiecutter.github_org }}/mini-paas-starter",
+  "commit": null,
+  "context": {
+    "cookiecutter": {
+      "project_name": "{{ cookiecutter.project_name }}",
+      "project_slug": "{{ cookiecutter.project_slug }}",
+      "description": "{{ cookiecutter.description }}",
+      "github_org": "{{ cookiecutter.github_org }}",
+      "service_type": "{{ cookiecutter.service_type }}",
+      "service_port": "{{ cookiecutter.service_port }}",
+      "docker_registry": "{{ cookiecutter.docker_registry }}",
+      "traefik_host": "{{ cookiecutter.traefik_host }}",
+      "memory_limit": "{{ cookiecutter.memory_limit }}"
+    }
+  },
+  "directory": "templates/node-service",
+  "checkout": null
+}

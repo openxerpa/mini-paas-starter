@@ -1,0 +1,27 @@
+services:
+  app:
+    build: .
+    environment:
+      - PORT={{ cookiecutter.service_port }}
+{% if cookiecutter.service_type == "external" %}
+    ports:
+      - "{{ cookiecutter.service_port }}:{{ cookiecutter.service_port }}"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.{{ cookiecutter.project_slug }}.rule=Host(`{{ cookiecutter.traefik_host }}`)"
+      - "traefik.http.routers.{{ cookiecutter.project_slug }}.entrypoints=web"
+      - "traefik.http.services.{{ cookiecutter.project_slug }}.loadbalancer.server.port={{ cookiecutter.service_port }}"
+{% else %}
+    container_name: {{ cookiecutter.project_slug }}
+{% endif %}
+    deploy:
+      resources:
+        limits:
+          memory: {{ cookiecutter.memory_limit }}
+    networks:
+      - webgateway
+
+networks:
+  webgateway:
+    external: true
+    name: traefik_webgateway
