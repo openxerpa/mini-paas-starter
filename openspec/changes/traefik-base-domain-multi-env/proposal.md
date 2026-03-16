@@ -13,7 +13,7 @@ App developers need a convention for multi-environment (dev/prod) domains withou
 
 ### New Capabilities
 
-- _(none)_
+- *(none)*
 
 ### Modified Capabilities
 
@@ -27,3 +27,4 @@ App developers need a convention for multi-environment (dev/prod) domains withou
 - **Templates**: `cookiecutter.json`, `docker-compose.yml`, `.github/workflows/ci-cd.yml` in each of go-service, node-service, python-service
 - **Docs**: New `docs/sample-app-cicd-walkthrough.md`
 - **Breaking**: Existing scaffolded projects using `traefik_host` will need to migrate (or re-scaffold). New scaffolds get `base_domain` instead.
+
