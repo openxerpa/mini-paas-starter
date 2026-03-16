@@ -1,9 +1,14 @@
-FROM python:3.13-slim
-RUN addgroup --system app && adduser --system --ingroup app app
+# Build stage
+FROM ghcr.io/astral-sh/uv:python3.14-dhi AS builder
 WORKDIR /app
-COPY src/ ./src/
 COPY requirements.txt ./
-RUN pip install --no-cache-dir -r requirements.txt 2>/dev/null || true
-USER app
+RUN uv pip install --no-cache -r requirements.txt --target /app/packages 2>/dev/null || true
+
+# Runtime stage
+FROM gcr.io/distroless/python3-debian13:nonroot
+WORKDIR /app
+ENV PYTHONPATH=/app/packages
+COPY --from=builder /app/packages /app/packages
+COPY src/ ./src/
 EXPOSE {{ cookiecutter.service_port }}
-CMD ["python", "-m", "src.main"]
+CMD ["-m", "src.main"]
