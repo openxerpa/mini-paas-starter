@@ -265,7 +265,7 @@ RUN pnpm install --frozen-lockfile --prod
 
 | Concern | Go | Node | Python |
 |---------|-----|------|--------|
-| Test setup | `setup-go@v6` | `setup-node@v4` + `pnpm/action-setup@v4` | `setup-uv@v7` |
+| Test setup | `setup-go@v6` | `setup-node@v6` + `pnpm/action-setup@v4` | `setup-uv@v7` |
 | Test command | `go test ./...` | `pnpm test` | `pytest` |
 | Package manager change | none | npm → pnpm | none |
 | Dockerfile change | none | pnpm migration | none |
