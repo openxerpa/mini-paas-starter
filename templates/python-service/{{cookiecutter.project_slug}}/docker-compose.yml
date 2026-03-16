@@ -1,5 +1,6 @@
 services:
   app:
+    image: {{ cookiecutter.docker_registry }}/{{ cookiecutter.github_org }}/{{ cookiecutter.project_slug }}:latest
     build: .
     environment:
       - PORT={{ cookiecutter.service_port }}

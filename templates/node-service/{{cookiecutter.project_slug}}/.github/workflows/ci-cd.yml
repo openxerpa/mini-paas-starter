@@ -95,13 +95,14 @@ jobs:
             vars:
               deploy_dir: /opt/apps/{{ cookiecutter.project_slug }}
               docker_registry: {{ cookiecutter.docker_registry }}
+              compose_src: ""
             tasks:
               - ansible.builtin.file:
                   path: "{{ "{{" }} deploy_dir {{ "}}" }}"
                   state: directory
                   mode: "0755"
               - ansible.builtin.copy:
-                  src: docker-compose.yml
+                  src: "{{ "{{" }} compose_src {{ "}}" }}"
                   dest: "{{ "{{" }} deploy_dir {{ "}}" }}/docker-compose.yml"
                   mode: "0644"
               - ansible.builtin.copy:
@@ -110,9 +111,9 @@ jobs:
                   mode: "0644"
               - ansible.builtin.command:
                   cmd: docker login {{ cookiecutter.docker_registry }} -u {{ "{{" }} deploy_registry_user {{ "}}" }} -p {{ "{{" }} deploy_registry_token {{ "}}" }}
-                  no_log: true
-                  when: {{ "{{" }} deploy_registry_token | default('', true) | length > 0 {{ "}}" }}
-              - ansible.builtin.command:
+              no_log: true
+              when: {{ "{{" }} deploy_registry_token | default('', true) | length > 0 {{ "}}" }}
+              - ansible.builtin.shell:
                   cmd: docker compose pull && docker compose up -d
                   chdir: "{{ "{{" }} deploy_dir {{ "}}" }}"
           PLAYBOOK
@@ -126,6 +127,7 @@ jobs:
           ansible-playbook -i /tmp/inventory.yml /tmp/deploy.yml \
             -e ansible_user="$ansible_user" \
             -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
+            -e compose_src=$GITHUB_WORKSPACE/docker-compose.yml \
             -e deploy_registry_user={% raw %}${{ github.repository_owner }}{% endraw %} \
             -e deploy_registry_token={% raw %}${{ secrets.DEPLOY_REGISTRY_TOKEN }}{% endraw %} \
             -e traefik_host={% raw %}${{ steps.env.outputs.traefik_host }}{% endraw %}
