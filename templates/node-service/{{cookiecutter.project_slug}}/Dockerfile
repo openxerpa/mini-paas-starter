@@ -1,8 +1,9 @@
 # Build stage
 FROM node:24-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json* ./
-RUN npm install --omit=dev
+RUN corepack enable pnpm
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 COPY . .
 
 # Runtime stage

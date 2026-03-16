@@ -1,3 +1,5 @@
+## ADDED Requirements
+
 ### Requirement: Prepare job resolves branch to environment
 
 The generated CI workflow SHALL include a `prepare` job that maps the branch (`main`, `dev`, `test`) to environment outputs. The job SHALL output `env_name`, `traefik_host`, and `image_tag_prefix` to `$GITHUB_OUTPUT`. For unsupported branches, the job SHALL exit with code 1 and emit an error.
@@ -62,16 +64,6 @@ The generated CI workflow SHALL invoke a committed Ansible playbook at `.github/
 - **THEN** it invokes `ansible-playbook -i <inventory> .github/deploy.yml` with extra vars
 - **AND** the playbook file exists in the repository at `.github/deploy.yml`
 
-### Requirement: Deploy step locates docker-compose.yml correctly
-
-The generated CI workflow SHALL pass the absolute path to `docker-compose.yml` to the Ansible deploy playbook so the copy task can find the file. The workflow invokes the committed playbook at `.github/deploy.yml`; the file lives in the repo checkout (`$GITHUB_WORKSPACE`).
-
-#### Scenario: Deploy step copies docker-compose.yml
-
-- **WHEN** the deploy job runs and executes the Ansible copy task
-- **THEN** the playbook receives `compose_src` set to `$GITHUB_WORKSPACE/docker-compose.yml` via extra vars
-- **AND** the file is found and copied to the deploy directory on the target host
-
 ### Requirement: docker-compose image tag is configurable
 
 The generated `docker-compose.yml` SHALL use `IMAGE_TAG` environment variable for the image tag, with `latest` as default when unset.
@@ -85,3 +77,15 @@ The generated `docker-compose.yml` SHALL use `IMAGE_TAG` environment variable fo
 
 - **WHEN** the deploy playbook writes .env
 - **THEN** it sets `IMAGE_TAG=<prefix>-latest` (e.g., `prod-latest`)
+
+## MODIFIED Requirements
+
+### Requirement: Deploy step locates docker-compose.yml correctly
+
+The generated CI workflow SHALL pass the absolute path to `docker-compose.yml` to the Ansible deploy playbook so the copy task can find the file. The workflow invokes the committed playbook at `.github/deploy.yml`; the file lives in the repo checkout (`$GITHUB_WORKSPACE`).
+
+#### Scenario: Deploy step copies docker-compose.yml
+
+- **WHEN** the deploy job runs and executes the Ansible copy task
+- **THEN** the playbook receives `compose_src` set to `$GITHUB_WORKSPACE/docker-compose.yml` via extra vars
+- **AND** the file is found and copied to the deploy directory on the target host

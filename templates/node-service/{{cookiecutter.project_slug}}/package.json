@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "{{ cookiecutter.description }}",
   "main": "src/index.js",
+  "packageManager": "pnpm@10.x",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "test": "echo 'No tests yet'"
   }
 }

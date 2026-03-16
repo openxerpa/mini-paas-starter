@@ -1,0 +1,51 @@
+---
+- hosts: all
+  become: true
+  vars:
+    deploy_dir: /opt/apps/{{ cookiecutter.project_slug }}
+    docker_registry: {{ cookiecutter.docker_registry }}
+    compose_src: ""
+    traefik_host: ""
+    image_tag: "latest"
+  tasks:
+    - name: Create deploy directory
+      ansible.builtin.file:
+        path: "{{ deploy_dir }}"
+        state: directory
+        mode: "0755"
+
+    - name: Copy docker-compose.yml
+      ansible.builtin.copy:
+        src: "{{ compose_src }}"
+        dest: "{{ deploy_dir }}/docker-compose.yml"
+        mode: "0644"
+
+    - name: Write .env
+      ansible.builtin.copy:
+        content: |
+          TRAEFIK_HOST={{ traefik_host }}
+          IMAGE_TAG={{ image_tag }}
+        dest: "{{ deploy_dir }}/.env"
+        mode: "0644"
+
+    - name: Docker registry login
+      ansible.builtin.command:
+        cmd: docker login {{ docker_registry }} -u {{ deploy_registry_user }} -p {{ deploy_registry_token }}
+      no_log: true
+      when: deploy_registry_token | default('', true) | length > 0
+
+    - name: Pull and start containers
+      ansible.builtin.shell:
+        cmd: docker compose pull && docker compose up -d
+        chdir: "{{ deploy_dir }}"
+
+    - name: Wait for containers to start
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Health check - verify container running
+      ansible.builtin.shell:
+        cmd: docker compose ps
+        chdir: "{{ deploy_dir }}"
+      register: compose_ps
+      failed_when: "'running' not in compose_ps.stdout"

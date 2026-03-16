@@ -5,9 +5,63 @@ on:
     branches: [main, dev, test]
   workflow_dispatch:
 
+concurrency:
+  group: deploy-{% raw %}${{ github.ref_name }}{% endraw %}
+  cancel-in-progress: false
+
 jobs:
-  build-and-push:
+  prepare:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      env_name: {% raw %}${{ steps.env.outputs.env_name }}{% endraw %}
+      traefik_host: {% raw %}${{ steps.env.outputs.traefik_host }}{% endraw %}
+      image_tag_prefix: {% raw %}${{ steps.env.outputs.image_tag_prefix }}{% endraw %}
+    steps:
+      - name: Resolve environment
+        id: env
+        run: |
+          case "{% raw %}${{ github.ref_name }}{% endraw %}" in
+            main)
+              echo "env_name=production" >> $GITHUB_OUTPUT
+              echo "image_tag_prefix=prod" >> $GITHUB_OUTPUT
+              echo "traefik_host={{ cookiecutter.project_slug }}.{{ cookiecutter.base_domain_prod }}" >> $GITHUB_OUTPUT
+              ;;
+            dev)
+              echo "env_name=dev" >> $GITHUB_OUTPUT
+              echo "image_tag_prefix=dev" >> $GITHUB_OUTPUT
+              echo "traefik_host={{ cookiecutter.project_slug }}.dev.{{ cookiecutter.base_domain_dev }}" >> $GITHUB_OUTPUT
+              ;;
+            test)
+              echo "env_name=test" >> $GITHUB_OUTPUT
+              echo "image_tag_prefix=test" >> $GITHUB_OUTPUT
+              echo "traefik_host={{ cookiecutter.project_slug }}.test.{{ cookiecutter.base_domain_test }}" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "::error::Unsupported branch '{% raw %}${{ github.ref_name }}{% endraw %}'"
+              exit 1
+              ;;
+          esac
+
+  test:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dependencies and run tests
+        run: uv pip install --system -r requirements.txt && pytest || test $? -eq 5
+
+  build-and-push:
+    needs: [prepare, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
       packages: write
@@ -15,29 +69,39 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Login to Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: {{ cookiecutter.docker_registry }}
           username: {% raw %}${{ github.actor }}{% endraw %}
           password: {% raw %}${{ secrets.GITHUB_TOKEN }}{% endraw %}
 
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: {{ cookiecutter.docker_registry }}/{% raw %}${{ github.repository_owner }}{% endraw %}/{{ cookiecutter.project_slug }}
+          tags: |
+            type=raw,value={% raw %}${{ needs.prepare.outputs.image_tag_prefix }}{% endraw %}-latest
+            type=sha,prefix={% raw %}${{ needs.prepare.outputs.image_tag_prefix }}{% endraw %}-
+
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
-          tags: |
-            {{ cookiecutter.docker_registry }}/{% raw %}${{ github.repository_owner }}{% endraw %}/{{ cookiecutter.project_slug }}:latest
-            {{ cookiecutter.docker_registry }}/{% raw %}${{ github.repository_owner }}{% endraw %}/{{ cookiecutter.project_slug }}:{% raw %}${{ github.sha }}{% endraw %}
+          tags: {% raw %}${{ steps.meta.outputs.tags }}{% endraw %}
+          labels: {% raw %}${{ steps.meta.outputs.labels }}{% endraw %}
           cache-from: type=gha
           cache-to: type=gha
 
   deploy:
-    needs: build-and-push
+    needs: [prepare, build-and-push]
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: {% raw %}${{ needs.prepare.outputs.env_name }}{% endraw %}
     steps:
       - uses: actions/checkout@v6
 
@@ -48,86 +112,32 @@ jobs:
           oauth-secret: {% raw %}${{ secrets.TAILSCALE_OAUTH_SECRET }}{% endraw %}
           tags: tag:ci
 
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
       - name: Install Ansible
-        run: pip install ansible
+        run: uv tool install ansible-core --with ansible
 
       - name: Write SSH key
         run: |
           mkdir -p ~/.ssh
-          if [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/main" ]; then
-            echo "{% raw %}${{ secrets.PROD_SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
-          elif [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/dev" ]; then
-            echo "{% raw %}${{ secrets.DEV_SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
-          else
-            echo "{% raw %}${{ secrets.TEST_SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
-          fi
+          echo "{% raw %}${{ secrets.SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-
-      - name: Write inventory
-        run: |
-          ip=""
-          if [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/main" ]; then
-            ip="{% raw %}${{ secrets.PROD_SERVER_IP }}{% endraw %}"
-          elif [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/dev" ]; then
-            ip="{% raw %}${{ secrets.DEV_SERVER_IP }}{% endraw %}"
-          else
-            ip="{% raw %}${{ secrets.TEST_SERVER_IP }}{% endraw %}"
-          fi
-          printf '[all]\n%s\n' "$ip" > /tmp/inventory.yml
-
-      # Env mapping: main → prod, dev → dev, test → test. Customize as needed.
-      - name: Set TRAEFIK_HOST from branch
-        id: env
-        run: |
-          if [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/main" ]; then
-            echo "traefik_host={{ cookiecutter.project_slug }}.{{ cookiecutter.base_domain_prod }}" >> $GITHUB_OUTPUT
-          elif [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/dev" ]; then
-            echo "traefik_host={{ cookiecutter.project_slug }}-dev.{{ cookiecutter.base_domain_dev }}" >> $GITHUB_OUTPUT
-          else
-            echo "traefik_host={{ cookiecutter.project_slug }}-test.{{ cookiecutter.base_domain_test }}" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Write deploy playbook
-        run: |
-          cat > /tmp/deploy.yml << 'PLAYBOOK'
-          - hosts: all
-            become: true
-            vars:
-              deploy_dir: /opt/apps/{{ cookiecutter.project_slug }}
-              docker_registry: {{ cookiecutter.docker_registry }}
-              compose_src: ""
-            tasks:
-              - ansible.builtin.file:
-                  path: "{{ "{{" }} deploy_dir {{ "}}" }}"
-                  state: directory
-                  mode: "0755"
-              - ansible.builtin.copy:
-                  src: "{{ "{{" }} compose_src {{ "}}" }}"
-                  dest: "{{ "{{" }} deploy_dir {{ "}}" }}/docker-compose.yml"
-                  mode: "0644"
-              - ansible.builtin.copy:
-                  content: "TRAEFIK_HOST={{ "{{" }} traefik_host {{ "}}" }}\n"
-                  dest: "{{ "{{" }} deploy_dir {{ "}}" }}/.env"
-                  mode: "0644"
-              - ansible.builtin.command:
-                  cmd: docker login {{ cookiecutter.docker_registry }} -u {{ "{{" }} deploy_registry_user {{ "}}" }} -p {{ "{{" }} deploy_registry_token {{ "}}" }}
-              no_log: true
-              when: {{ "{{" }} deploy_registry_token | default('', true) | length > 0 {{ "}}" }}
-              - ansible.builtin.shell:
-                  cmd: docker compose pull && docker compose up -d
-                  chdir: "{{ "{{" }} deploy_dir {{ "}}" }}"
-          PLAYBOOK
 
       - name: Run deploy
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
           DEPLOY_USER: {% raw %}${{ secrets.DEPLOY_USER }}{% endraw %}
         run: |
-          ansible_user="${DEPLOY_USER:-deploy}"
-          ansible-playbook -i /tmp/inventory.yml /tmp/deploy.yml \
+          ansible_user="${DEPLOY_USER:-root}"
+          printf '[all]\n%s\n' "{% raw %}${{ secrets.SERVER_IP }}{% endraw %}" > /tmp/inventory.yml
+          ansible-playbook -i /tmp/inventory.yml .github/deploy.yml \
             -e ansible_user="$ansible_user" \
             -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
             -e compose_src=$GITHUB_WORKSPACE/docker-compose.yml \
             -e deploy_registry_user={% raw %}${{ github.repository_owner }}{% endraw %} \
             -e deploy_registry_token={% raw %}${{ secrets.DEPLOY_REGISTRY_TOKEN }}{% endraw %} \
-            -e traefik_host={% raw %}${{ steps.env.outputs.traefik_host }}{% endraw %}
+            -e traefik_host={% raw %}${{ needs.prepare.outputs.traefik_host }}{% endraw %} \
+            -e image_tag={% raw %}${{ needs.prepare.outputs.image_tag_prefix }}{% endraw %}-latest
