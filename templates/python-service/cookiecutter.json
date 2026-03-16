@@ -6,6 +6,8 @@
   "service_type": ["external", "internal"],
   "service_port": "3000",
   "docker_registry": "ghcr.io",
-  "traefik_host": "{{ cookiecutter.project_slug }}.yourdomain.com",
+  "base_domain_dev": "a.com",
+  "base_domain_test": "a.com",
+  "base_domain_prod": "c.com",
   "memory_limit": "512M"
 }

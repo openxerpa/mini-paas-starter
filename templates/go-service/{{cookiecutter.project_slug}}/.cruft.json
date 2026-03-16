@@ -10,7 +10,9 @@
       "service_type": "{{ cookiecutter.service_type }}",
       "service_port": "{{ cookiecutter.service_port }}",
       "docker_registry": "{{ cookiecutter.docker_registry }}",
-      "traefik_host": "{{ cookiecutter.traefik_host }}",
+      "base_domain_dev": "{{ cookiecutter.base_domain_dev }}",
+      "base_domain_test": "{{ cookiecutter.base_domain_test }}",
+      "base_domain_prod": "{{ cookiecutter.base_domain_prod }}",
       "memory_limit": "{{ cookiecutter.memory_limit }}"
     }
   },

@@ -76,6 +76,7 @@ Or push to `main` and let CI/CD handle it (requires GitHub secrets).
 ## Documentation
 
 - [Architecture & traffic flows](docs/architecture.md)
+- [Sample app: scaffold to deploy (CI/CD)](docs/sample-app-cicd-walkthrough.md)
 
 ## License
 

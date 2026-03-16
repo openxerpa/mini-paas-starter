@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev, test]
   workflow_dispatch:
 
 jobs:
@@ -59,6 +59,18 @@ jobs:
         run: |
           echo "${{ secrets.DEPLOY_HOST }}," > /tmp/inventory.yml
 
+      # Env mapping: main → prod, dev → dev, test → test. Customize as needed.
+      - name: Set TRAEFIK_HOST from branch
+        id: env
+        run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "traefik_host={{ cookiecutter.project_slug }}.{{ cookiecutter.base_domain_prod }}" >> $GITHUB_OUTPUT
+          elif [ "${{ github.ref }}" = "refs/heads/dev" ]; then
+            echo "traefik_host={{ cookiecutter.project_slug }}-dev.{{ cookiecutter.base_domain_dev }}" >> $GITHUB_OUTPUT
+          else
+            echo "traefik_host={{ cookiecutter.project_slug }}-test.{{ cookiecutter.base_domain_test }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Write deploy playbook
         run: |
           cat > /tmp/deploy.yml << 'PLAYBOOK'
@@ -76,6 +88,10 @@ jobs:
                   src: docker-compose.yml
                   dest: "{{ deploy_dir }}/docker-compose.yml"
                   mode: "0644"
+              - ansible.builtin.copy:
+                  content: "TRAEFIK_HOST={{ traefik_host }}\n"
+                  dest: "{{ deploy_dir }}/.env"
+                  mode: "0644"
               - ansible.builtin.command:
                   cmd: docker login {{ cookiecutter.docker_registry }} -u {{ deploy_registry_user }} -p {{ deploy_registry_token }}
                   no_log: true
@@ -92,4 +108,5 @@ jobs:
             -e ansible_user=${{ secrets.DEPLOY_USER }} \
             -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
             -e deploy_registry_user=${{ github.repository_owner }} \
-            -e deploy_registry_token=${{ secrets.DEPLOY_REGISTRY_TOKEN }}
+            -e deploy_registry_token=${{ secrets.DEPLOY_REGISTRY_TOKEN }} \
+            -e traefik_host=${{ steps.env.outputs.traefik_host }}
