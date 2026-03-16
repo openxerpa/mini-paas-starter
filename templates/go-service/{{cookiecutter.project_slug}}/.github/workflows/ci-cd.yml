@@ -44,8 +44,8 @@ jobs:
       - name: Setup Tailscale
         uses: tailscale/github-action@v4
         with:
-          oauth-client-id: {% raw %}${{ secrets.TS_OAUTH_CLIENT_ID }}{% endraw %}
-          oauth-secret: {% raw %}${{ secrets.TS_OAUTH_SECRET }}{% endraw %}
+          oauth-client-id: {% raw %}${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}{% endraw %}
+          oauth-secret: {% raw %}${{ secrets.TAILSCALE_OAUTH_SECRET }}{% endraw %}
           tags: tag:ci
 
       - name: Install Ansible
@@ -54,12 +54,24 @@ jobs:
       - name: Write SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "{% raw %}${{ secrets.ANSIBLE_SSH_PRIVATE_KEY }}{% endraw %}" > ~/.ssh/id_rsa
+          if [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/main" ]; then
+            echo "{% raw %}${{ secrets.PROD_SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
+          elif [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/dev" ]; then
+            echo "{% raw %}${{ secrets.DEV_SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
+          else
+            echo "{% raw %}${{ secrets.TEST_SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
+          fi
           chmod 600 ~/.ssh/id_rsa
 
       - name: Write inventory
         run: |
-          echo "{% raw %}${{ secrets.DEPLOY_HOST }}{% endraw %}," > /tmp/inventory.yml
+          if [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/main" ]; then
+            echo "{% raw %}${{ secrets.PROD_SERVER_IP }}{% endraw %}," > /tmp/inventory.yml
+          elif [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/dev" ]; then
+            echo "{% raw %}${{ secrets.DEV_SERVER_IP }}{% endraw %}," > /tmp/inventory.yml
+          else
+            echo "{% raw %}${{ secrets.TEST_SERVER_IP }}{% endraw %}," > /tmp/inventory.yml
+          fi
 
       # Env mapping: main → prod, dev → dev, test → test. Customize as needed.
       - name: Set TRAEFIK_HOST from branch
@@ -97,6 +109,7 @@ jobs:
               - ansible.builtin.command:
                   cmd: docker login {{ cookiecutter.docker_registry }} -u {{ "{{" }} deploy_registry_user {{ "}}" }} -p {{ "{{" }} deploy_registry_token {{ "}}" }}
                   no_log: true
+                  when: {{ "{{" }} deploy_registry_token | default('', true) | length > 0 {{ "}}" }}
               - ansible.builtin.command:
                   cmd: docker compose pull && docker compose up -d
                   chdir: "{{ "{{" }} deploy_dir {{ "}}" }}"
@@ -105,9 +118,11 @@ jobs:
       - name: Run deploy
         env:
           ANSIBLE_HOST_KEY_CHECKING: "False"
+          DEPLOY_USER: {% raw %}${{ secrets.DEPLOY_USER }}{% endraw %}
         run: |
+          ansible_user="${DEPLOY_USER:-deploy}"
           ansible-playbook -i /tmp/inventory.yml /tmp/deploy.yml \
-            -e ansible_user={% raw %}${{ secrets.DEPLOY_USER }}{% endraw %} \
+            -e ansible_user="$ansible_user" \
             -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
             -e deploy_registry_user={% raw %}${{ github.repository_owner }}{% endraw %} \
             -e deploy_registry_token={% raw %}${{ secrets.DEPLOY_REGISTRY_TOKEN }}{% endraw %} \

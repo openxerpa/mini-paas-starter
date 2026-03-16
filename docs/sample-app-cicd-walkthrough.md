@@ -9,7 +9,7 @@ The following are typically configured by infra; app developers do not need to v
 - **Server bootstrap**: Docker, `traefik_webgateway` network, `/opt/apps/` — see [README quick start](../README.md#quick-start)
 - **Traefik**: Gateway running on port 80 — see [Architecture traffic flows](architecture.md#traffic-flows)
 - **Tailscale**: Server joined to mesh with Tailscale IP
-- **CI secrets**: `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `ANSIBLE_SSH_PRIVATE_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REGISTRY_TOKEN` — usually set at org/repo level
+- **CI secrets**: `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_SECRET`, per-env `PROD_SERVER_IP`/`PROD_SSH_KEY`, `DEV_SERVER_IP`/`DEV_SSH_KEY`, `TEST_SERVER_IP`/`TEST_SSH_KEY`, `DEPLOY_REGISTRY_TOKEN` (optional for public images) — usually set at org/repo level
 
 ## Step 1: Scaffold the project
 
@@ -37,11 +37,10 @@ CI derives TRAEFIK_HOST per branch: prod = `{slug}.{base_domain_prod}`, dev = `{
 
 Infra usually configures these at org or repo level. Confirm your repo has:
 
-- `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET` — create an [OAuth client](https://tailscale.com/s/oauth-clients) with `auth_keys` scope and tag `tag:ci`
-- `ANSIBLE_SSH_PRIVATE_KEY`
-- `DEPLOY_HOST` (Tailscale IP of deploy target)
-- `DEPLOY_USER` (e.g. `deploy`)
-- `DEPLOY_REGISTRY_TOKEN` (GitHub PAT with `read:packages`)
+- `TAILSCALE_OAUTH_CLIENT_ID` and `TAILSCALE_OAUTH_SECRET` — create an [OAuth client](https://tailscale.com/s/oauth-clients) with `auth_keys` scope and tag `tag:ci`
+- Per-env: `PROD_SERVER_IP`, `PROD_SSH_KEY` (main); `DEV_SERVER_IP`, `DEV_SSH_KEY` (dev); `TEST_SERVER_IP`, `TEST_SSH_KEY` (test)
+- `DEPLOY_USER` (optional; defaults to `deploy`)
+- `DEPLOY_REGISTRY_TOKEN` (optional; required only for private images; GitHub PAT with `read:packages` for ghcr.io)
 
 If you need project-specific vars (e.g. `DATABASE_URL`), add them in **Settings → Secrets and variables → Actions**.
 
@@ -76,6 +75,6 @@ Expected response: `{"service":"<slug>","status":"ok"}`.
 | Issue | Check |
 |-------|------|
 | **Build fails** | Dockerfile, `go.mod`; verify image builds locally with `docker build .` |
-| **Deploy fails** | `DEPLOY_HOST` reachable via Tailscale; SSH key (`ANSIBLE_SSH_PRIVATE_KEY`) works for `deploy` user; `DEPLOY_REGISTRY_TOKEN` has `read:packages` |
+| **Deploy fails** | Per-env server IP reachable via Tailscale; per-env SSH key works for `deploy` user; `DEPLOY_REGISTRY_TOKEN` has `read:packages` |
 | **Service not reachable (external)** | DNS points to Traefik upstream (cloud LB); Traefik running; `.env` with `TRAEFIK_HOST` written to deploy dir |
 | **Service not reachable (internal)** | Caller is on Tailscale network; use `http://<slug>:<port>` |
