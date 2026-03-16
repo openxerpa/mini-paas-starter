@@ -65,13 +65,15 @@ jobs:
 
       - name: Write inventory
         run: |
+          ip=""
           if [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/main" ]; then
-            echo "{% raw %}${{ secrets.PROD_SERVER_IP }}{% endraw %}," > /tmp/inventory.yml
+            ip="{% raw %}${{ secrets.PROD_SERVER_IP }}{% endraw %}"
           elif [ "{% raw %}${{ github.ref }}{% endraw %}" = "refs/heads/dev" ]; then
-            echo "{% raw %}${{ secrets.DEV_SERVER_IP }}{% endraw %}," > /tmp/inventory.yml
+            ip="{% raw %}${{ secrets.DEV_SERVER_IP }}{% endraw %}"
           else
-            echo "{% raw %}${{ secrets.TEST_SERVER_IP }}{% endraw %}," > /tmp/inventory.yml
+            ip="{% raw %}${{ secrets.TEST_SERVER_IP }}{% endraw %}"
           fi
+          printf '[all]\n%s\n' "$ip" > /tmp/inventory.yml
 
       # Env mapping: main → prod, dev → dev, test → test. Customize as needed.
       - name: Set TRAEFIK_HOST from branch
