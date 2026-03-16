@@ -44,7 +44,9 @@ jobs:
       - name: Setup Tailscale
         uses: tailscale/github-action@v4
         with:
-          authkey: {% raw %}${{ secrets.TAILSCALE_AUTHKEY }}{% endraw %}
+          oauth-client-id: {% raw %}${{ secrets.TS_OAUTH_CLIENT_ID }}{% endraw %}
+          oauth-secret: {% raw %}${{ secrets.TS_OAUTH_SECRET }}{% endraw %}
+          tags: tag:ci
 
       - name: Install Ansible
         run: pip install ansible

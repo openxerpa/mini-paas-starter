@@ -9,7 +9,7 @@ The following are typically configured by infra; app developers do not need to v
 - **Server bootstrap**: Docker, `traefik_webgateway` network, `/opt/apps/` — see [README quick start](../README.md#quick-start)
 - **Traefik**: Gateway running on port 80 — see [Architecture traffic flows](architecture.md#traffic-flows)
 - **Tailscale**: Server joined to mesh with Tailscale IP
-- **CI secrets**: `TAILSCALE_AUTHKEY`, `ANSIBLE_SSH_PRIVATE_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REGISTRY_TOKEN` — usually set at org/repo level
+- **CI secrets**: `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_SECRET`, `ANSIBLE_SSH_PRIVATE_KEY`, `DEPLOY_HOST`, `DEPLOY_USER`, `DEPLOY_REGISTRY_TOKEN` — usually set at org/repo level
 
 ## Step 1: Scaffold the project
 
@@ -37,7 +37,7 @@ CI derives TRAEFIK_HOST per branch: prod = `{slug}.{base_domain_prod}`, dev = `{
 
 Infra usually configures these at org or repo level. Confirm your repo has:
 
-- `TAILSCALE_AUTHKEY`
+- `TS_OAUTH_CLIENT_ID` and `TS_OAUTH_SECRET` — create an [OAuth client](https://tailscale.com/s/oauth-clients) with `auth_keys` scope and tag `tag:ci`
 - `ANSIBLE_SSH_PRIVATE_KEY`
 - `DEPLOY_HOST` (Tailscale IP of deploy target)
 - `DEPLOY_USER` (e.g. `deploy`)
