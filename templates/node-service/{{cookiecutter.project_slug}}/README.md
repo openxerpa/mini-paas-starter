@@ -17,14 +17,23 @@ docker compose up
 
 Push to `main`, `dev`, or `test`; CI/CD builds and deploys automatically.
 
-### GitHub Environments setup
+### Repo-level secrets
 
-1. Create environments: **production** (for `main`), **dev** (for `dev`), **test** (for `test`).
-2. Add environment-scoped secrets to each:
-   - `SSH_KEY` — SSH private key for the deploy server
-   - `SERVER_IP` — Target server IP or hostname
-   - `DEPLOY_USER` — (optional) SSH user; defaults to `root` when not set
-3. Keep these repo-level (shared): `DEPLOY_REGISTRY_TOKEN`, `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_SECRET`
+Add these secrets in **Settings → Secrets and variables → Actions**:
+
+| Secret | Purpose |
+|--------|---------|
+| `PROD_TAILSCALE_IP` | Production server Tailscale IP (100.x.x.x) |
+| `DEV_TAILSCALE_IP` | Dev server Tailscale IP |
+| `TEST_TAILSCALE_IP` | Test server Tailscale IP |
+| `PROD_SSH_KEY` | Production SSH private key |
+| `DEV_SSH_KEY` | Dev SSH private key |
+| `TEST_SSH_KEY` | Test SSH private key |
+| `DEPLOY_USER` | (optional) SSH user; defaults to `root` when not set |
+
+**Note:** These IP variables must be the target server's Tailscale IP (100.x.x.x). Do not use public IPs. SSH connects over Tailscale; servers typically do not expose public SSH ports.
+
+Keep these repo-level (shared): `DEPLOY_REGISTRY_TOKEN`, `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_SECRET`
 
 ### Emergency deploy
 
