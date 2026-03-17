@@ -24,17 +24,17 @@ The emergency-deploy workflow SHALL accept two required inputs: `image_tag` (str
 - **THEN** they MUST provide `image_tag` and `target_env`
 - **AND** the workflow uses these values for the deploy step
 
-#### Scenario: target_env maps to GitHub Environment
+#### Scenario: target_env maps to per-env secrets
 
 - **WHEN** `target_env` is `production`
-- **THEN** the deploy job uses `environment: production`
-- **AND** secrets are read from the production environment
+- **THEN** the deploy job selects `PROD_TAILSCALE_IP` and `PROD_SSH_KEY` via case/if
+- **AND** no `environment:` is declared
 
-#### Scenario: Developer environment uses environment-scoped secrets
+#### Scenario: Developer environment uses dev secrets
 
 - **WHEN** `target_env` is `dev-alice`
-- **THEN** the deploy job uses `environment: dev-alice`
-- **AND** secrets (SSH_KEY, SERVER_IP) are read from the dev-alice environment
+- **THEN** the deploy job selects `DEV_TAILSCALE_IP` and `DEV_SSH_KEY` (shared dev server)
+- **AND** secrets are repo-level, not environment-scoped
 
 ### Requirement: Emergency deploy resolves traefik_host and deploy_dir from target_env
 

@@ -42,15 +42,15 @@ The generated CI workflow SHALL push Docker images with environment-scoped tags.
 - **THEN** the image is tagged `:dev-latest` and `:dev-abc1234`
 - **AND** no tag collision occurs with other branches
 
-### Requirement: Deploy job uses GitHub Environments
+### Requirement: Deploy job uses per-env repo-level secrets
 
-The deploy job SHALL declare `environment: ${{ needs.prepare.outputs.env_name }}`. Secrets SHALL be environment-scoped (`SSH_KEY`, `SERVER_IP`, `DEPLOY_USER` per environment). `DEPLOY_USER` SHALL default to `root` when not set.
+The deploy job SHALL NOT declare `environment:`. Secrets SHALL be repo-level with per-env names: `PROD_TAILSCALE_IP`, `DEV_TAILSCALE_IP`, `TEST_TAILSCALE_IP`, `PROD_SSH_KEY`, `DEV_SSH_KEY`, `TEST_SSH_KEY`. The workflow SHALL use case/if on `needs.prepare.outputs.env_name` to select the correct secret. `DEPLOY_USER` SHALL default to `root` when not set.
 
-#### Scenario: Production deploy uses production environment
+#### Scenario: Production deploy uses production secrets
 
 - **WHEN** the deploy job runs for branch `main`
-- **THEN** the job uses `environment: production`
-- **AND** secrets are read from the production environment
+- **THEN** the job selects `PROD_TAILSCALE_IP` and `PROD_SSH_KEY`
+- **AND** no `environment:` is declared
 
 ### Requirement: Deploy uses committed Ansible playbook
 
