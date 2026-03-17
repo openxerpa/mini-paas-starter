@@ -24,6 +24,14 @@ if ! command -v cruft &>/dev/null; then
   echo "ERROR: cruft is not installed. Install with: pip install cruft"
   exit 1
 fi
+if ! command -v ansible-playbook &>/dev/null; then
+  echo "ERROR: ansible-playbook is not installed. Install with: pip install ansible-core"
+  exit 1
+fi
+if ! command -v ansible-lint &>/dev/null; then
+  echo "ERROR: ansible-lint is not installed. Install with: pip install ansible-lint"
+  exit 1
+fi
 
 # Update tests use git reset --hard; require clean working tree
 if ! (git diff --quiet && git diff --cached --quiet); then
@@ -51,6 +59,11 @@ for name in "${TEMPLATES[@]}"; do
   for f in ${REQUIRED_FILES[$name]}; do
     [ ! -f "$proj/$f" ] && { echo "FAIL: $name: missing $f"; exit 1; }
   done
+  # Ansible playbook validation (syntax + lint)
+  deploy_yml="$proj/.github/deploy.yml"
+  [ ! -f "$deploy_yml" ] && { echo "FAIL: $name: missing .github/deploy.yml"; exit 1; }
+  ansible-playbook -i localhost, --syntax-check "$deploy_yml" || { echo "FAIL: $name: ansible-playbook --syntax-check failed"; exit 1; }
+  ansible-lint --profile min "$deploy_yml" || { echo "FAIL: $name: ansible-lint failed"; exit 1; }
   echo "  OK: $name"
 done
 
