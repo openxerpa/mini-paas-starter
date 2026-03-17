@@ -1,0 +1,96 @@
+name: Emergency Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: 'Docker image tag to deploy (e.g. v1.0.0, dev-latest, prod-abc1234)'
+        required: true
+        type: string
+      target_env:
+        description: 'Target environment (production, dev, test, or dev-<username> e.g. dev-alice)'
+        required: true
+        type: string
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      traefik_host: {% raw %}${{ steps.prepare.outputs.traefik_host }}{% endraw %}
+      deploy_dir: {% raw %}${{ steps.prepare.outputs.deploy_dir }}{% endraw %}
+    steps:
+      - name: Resolve traefik_host and deploy_dir
+        id: prepare
+        run: |
+          env="{% raw %}${{ inputs.target_env }}{% endraw %}"
+          slug="{{ cookiecutter.project_slug }}"
+          case "$env" in
+            production)
+              echo "traefik_host=${slug}.{{ cookiecutter.base_domain_prod }}" >> $GITHUB_OUTPUT
+              echo "deploy_dir=/opt/apps/${slug}" >> $GITHUB_OUTPUT
+              ;;
+            dev)
+              echo "traefik_host=${slug}.dev.{{ cookiecutter.base_domain_dev }}" >> $GITHUB_OUTPUT
+              echo "deploy_dir=/opt/apps/${slug}" >> $GITHUB_OUTPUT
+              ;;
+            test)
+              echo "traefik_host=${slug}.test.{{ cookiecutter.base_domain_test }}" >> $GITHUB_OUTPUT
+              echo "deploy_dir=/opt/apps/${slug}" >> $GITHUB_OUTPUT
+              ;;
+            dev-*)
+              username="${env#dev-}"
+              echo "traefik_host=${slug}-${username}.dev.{{ cookiecutter.base_domain_dev }}" >> $GITHUB_OUTPUT
+              echo "deploy_dir=/opt/apps/${slug}-${env}" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "::error::Unsupported target_env '$env'. Use production, dev, test, or dev-<username>"
+              exit 1
+              ;;
+          esac
+
+  deploy:
+    needs: prepare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: {% raw %}${{ inputs.target_env }}{% endraw %}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: {% raw %}${{ secrets.TAILSCALE_OAUTH_CLIENT_ID }}{% endraw %}
+          oauth-secret: {% raw %}${{ secrets.TAILSCALE_OAUTH_SECRET }}{% endraw %}
+          tags: tag:ci
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install Ansible
+        run: uv tool install ansible-core --with ansible
+
+      - name: Write SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "{% raw %}${{ secrets.SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+
+      - name: Run deploy
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: "False"
+          DEPLOY_USER: {% raw %}${{ secrets.DEPLOY_USER }}{% endraw %}
+        run: |
+          ansible_user="${DEPLOY_USER:-root}"
+          printf '[all]\n%s\n' "{% raw %}${{ secrets.SERVER_IP }}{% endraw %}" > /tmp/inventory.yml
+          ansible-playbook -i /tmp/inventory.yml .github/deploy.yml \
+            -e ansible_user="$ansible_user" \
+            -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
+            -e compose_src=$GITHUB_WORKSPACE/docker-compose.yml \
+            -e deploy_registry_user={% raw %}${{ github.repository_owner }}{% endraw %} \
+            -e deploy_registry_token={% raw %}${{ secrets.DEPLOY_REGISTRY_TOKEN }}{% endraw %} \
+            -e traefik_host={% raw %}${{ needs.prepare.outputs.traefik_host }}{% endraw %} \
+            -e image_tag={% raw %}${{ inputs.image_tag }}{% endraw %} \
+            -e deploy_dir={% raw %}${{ needs.prepare.outputs.deploy_dir }}{% endraw %}

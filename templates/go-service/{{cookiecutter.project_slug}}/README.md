@@ -21,6 +21,19 @@ Push to `main`, `dev`, or `test`; CI/CD builds and deploys automatically.
    - `DEPLOY_USER` — (optional) SSH user; defaults to `root` when not set
 3. Keep these repo-level (shared): `DEPLOY_REGISTRY_TOKEN`, `TAILSCALE_OAUTH_CLIENT_ID`, `TAILSCALE_OAUTH_SECRET`
 
+### Emergency deploy
+
+For rollback or deploying a specific image tag without rebuilding: **Actions** → **Emergency Deploy** → **Run workflow**.
+
+| Input | Description |
+|-------|-------------|
+| `image_tag` | Docker image tag to deploy (e.g. `v1.0.0`, `dev-latest`, `prod-abc1234`) |
+| `target_env` | `production`, `dev`, `test`, or `dev-<username>` (e.g. `dev-alice`) |
+
+**Routing convention:** `{app}.{env}.domain.com` — e.g. `myapp.dev.example.com`, `myapp-alice.dev.example.com` for developer environments.
+
+**Note:** The image must already exist in the registry.
+
 ## Environment variables
 
 | Variable | Description |
