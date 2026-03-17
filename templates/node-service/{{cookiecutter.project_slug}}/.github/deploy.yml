@@ -10,34 +10,34 @@
   tasks:
     - name: Create deploy directory
       ansible.builtin.file:
-        path: "{{ deploy_dir }}"
+        path: "{% raw %}{{ deploy_dir }}{% endraw %}"
         state: directory
         mode: "0755"
 
     - name: Copy docker-compose.yml
       ansible.builtin.copy:
-        src: "{{ compose_src }}"
-        dest: "{{ deploy_dir }}/docker-compose.yml"
+        src: "{% raw %}{{ compose_src }}{% endraw %}"
+        dest: "{% raw %}{{ deploy_dir }}{% endraw %}/docker-compose.yml"
         mode: "0644"
 
     - name: Write .env
       ansible.builtin.copy:
         content: |
-          TRAEFIK_HOST={{ traefik_host }}
-          IMAGE_TAG={{ image_tag }}
-        dest: "{{ deploy_dir }}/.env"
+          TRAEFIK_HOST={% raw %}{{ traefik_host }}{% endraw %}
+          IMAGE_TAG={% raw %}{{ image_tag }}{% endraw %}
+        dest: "{% raw %}{{ deploy_dir }}{% endraw %}/.env"
         mode: "0644"
 
     - name: Docker registry login
       ansible.builtin.command:
-        cmd: docker login {{ docker_registry }} -u {{ deploy_registry_user }} -p {{ deploy_registry_token }}
+        cmd: docker login {{ cookiecutter.docker_registry }} -u {% raw %}{{ deploy_registry_user }}{% endraw %} -p {% raw %}{{ deploy_registry_token }}{% endraw %}
       no_log: true
-      when: deploy_registry_token | default('', true) | length > 0
+      when: {% raw %}deploy_registry_token | default('', true) | length > 0{% endraw %}
 
     - name: Pull and start containers
       ansible.builtin.shell:
         cmd: docker compose pull && docker compose up -d
-        chdir: "{{ deploy_dir }}"
+        chdir: "{% raw %}{{ deploy_dir }}{% endraw %}"
 
     - name: Wait for containers to start
       ansible.builtin.pause:
@@ -46,6 +46,6 @@
     - name: Health check - verify container running
       ansible.builtin.shell:
         cmd: docker compose ps
-        chdir: "{{ deploy_dir }}"
+        chdir: "{% raw %}{{ deploy_dir }}{% endraw %}"
       register: compose_ps
       failed_when: "'running' not in compose_ps.stdout"
