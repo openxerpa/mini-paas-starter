@@ -53,7 +53,6 @@ jobs:
     needs: prepare
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    environment: {% raw %}${{ inputs.target_env }}{% endraw %}
     steps:
       - uses: actions/checkout@v6
 
@@ -75,7 +74,21 @@ jobs:
       - name: Write SSH key
         run: |
           mkdir -p ~/.ssh
-          echo "{% raw %}${{ secrets.SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
+          case "{% raw %}${{ inputs.target_env }}{% endraw %}" in
+            production)
+              echo "{% raw %}${{ secrets.PROD_SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
+              ;;
+            dev|dev-*)
+              echo "{% raw %}${{ secrets.DEV_SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
+              ;;
+            test)
+              echo "{% raw %}${{ secrets.TEST_SSH_KEY }}{% endraw %}" > ~/.ssh/id_rsa
+              ;;
+            *)
+              echo "::error::Unsupported target_env"
+              exit 1
+              ;;
+          esac
           chmod 600 ~/.ssh/id_rsa
 
       - name: Run deploy
@@ -84,7 +97,22 @@ jobs:
           DEPLOY_USER: {% raw %}${{ secrets.DEPLOY_USER }}{% endraw %}
         run: |
           ansible_user="${DEPLOY_USER:-root}"
-          printf '[all]\n%s\n' "{% raw %}${{ secrets.SERVER_IP }}{% endraw %}" > /tmp/inventory.yml
+          case "{% raw %}${{ inputs.target_env }}{% endraw %}" in
+            production)
+              server_ip="{% raw %}${{ secrets.PROD_TAILSCALE_IP }}{% endraw %}"
+              ;;
+            dev|dev-*)
+              server_ip="{% raw %}${{ secrets.DEV_TAILSCALE_IP }}{% endraw %}"
+              ;;
+            test)
+              server_ip="{% raw %}${{ secrets.TEST_TAILSCALE_IP }}{% endraw %}"
+              ;;
+            *)
+              echo "::error::Unsupported target_env"
+              exit 1
+              ;;
+          esac
+          printf '[all]\n%s\n' "$server_ip" > /tmp/inventory.yml
           ansible-playbook -i /tmp/inventory.yml .github/deploy.yml \
             -e ansible_user="$ansible_user" \
             -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
