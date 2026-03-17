@@ -4,7 +4,7 @@
   "description": "A short description of the service",
   "github_org": "your-org",
   "service_type": ["external", "internal"],
-  "service_port": "3000",
+  "service_port": "8000",
   "docker_registry": "ghcr.io",
   "base_domain_dev": "a.com",
   "base_domain_test": "a.com",
