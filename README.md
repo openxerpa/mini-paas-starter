@@ -46,7 +46,7 @@ ansible-playbook -i inventory/hosts.yml playbooks/tailscale.yml -l production -e
 
 ```bash
 cruft create ./templates/go-service
-# Or: ./templates/node-service, ./templates/python-service
+# Or: ./templates/node-service, ./templates/nextjs-service, ./templates/python-service
 ```
 
 ## Directory overview
@@ -57,6 +57,7 @@ cruft create ./templates/go-service
 | `infra/ansible/` | Playbooks: bootstrap, tailscale, traefik, deploy-app |
 | `templates/go-service/` | Go service Cookiecutter template |
 | `templates/node-service/` | Node.js service Cookiecutter template |
+| `templates/nextjs-service/` | Next.js (App Router, TypeScript, Tailwind) Cookiecutter template |
 | `templates/python-service/` | Python service Cookiecutter template |
 | `docs/` | Architecture and ops documentation |
 
