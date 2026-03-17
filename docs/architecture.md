@@ -75,6 +75,7 @@ Internal services share the `traefik_webgateway` network. No Traefik labels; cal
 ## Ops guidelines
 
 - **Secrets**: Never commit `tailscale_auth_key`, `gh_token`, or `DEPLOY_REGISTRY_TOKEN`; use `--extra-vars` or GitHub secrets
+- **Deploy IPs**: Deploy secrets use `PROD_TAILSCALE_IP`, `DEV_TAILSCALE_IP`, `TEST_TAILSCALE_IP` — these must be Tailscale IPs (100.x.x.x), not public IPs. SSH connects over Tailscale.
 - **Dashboard**: Traefik dashboard on port 8080; restrict via cloud firewall to internal/Tailscale IPs only
 - **Idempotency**: All Ansible playbooks are safe to re-run
 - **Rollback**: `docker compose down` in app dir; re-run deploy playbook for previous version

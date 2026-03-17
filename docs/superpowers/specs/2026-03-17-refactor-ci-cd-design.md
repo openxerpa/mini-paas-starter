@@ -142,21 +142,17 @@ GHA build cache (`cache-from: type=gha`, `cache-to: type=gha`) is retained.
 
 ## Deploy Job
 
-### GitHub Environments
+### Per-env repo-level secrets
 
-The deploy job declares `environment: ${{ needs.prepare.outputs.env_name }}`, enabling:
-
-- Environment-scoped secrets (one `SSH_KEY` per environment instead of `PROD_SSH_KEY` / `DEV_SSH_KEY` / `TEST_SSH_KEY`)
-- Required reviewers for production
-- Deployment history and status badges
+The deploy job SHALL NOT declare `environment:`. Secrets SHALL be repo-level with per-env names: `PROD_TAILSCALE_IP`, `DEV_TAILSCALE_IP`, `TEST_TAILSCALE_IP`, `PROD_SSH_KEY`, `DEV_SSH_KEY`, `TEST_SSH_KEY`. The workflow SHALL use case/if on `needs.prepare.outputs.env_name` to select the correct secret.
 
 **Secret migration**:
 
-| Current (repo-level) | New (environment-scoped) |
+| Old (environment-scoped) | New (per-env repo-level) |
 |---|---|
-| `PROD_SSH_KEY`, `DEV_SSH_KEY`, `TEST_SSH_KEY` | `SSH_KEY` (per environment) |
-| `PROD_SERVER_IP`, `DEV_SERVER_IP`, `TEST_SERVER_IP` | `SERVER_IP` (per environment) |
-| `DEPLOY_USER` | `DEPLOY_USER` (per environment, optional) |
+| `SSH_KEY` (per environment) | `PROD_SSH_KEY`, `DEV_SSH_KEY`, `TEST_SSH_KEY` |
+| IP/hostname (per environment) | `PROD_TAILSCALE_IP`, `DEV_TAILSCALE_IP`, `TEST_TAILSCALE_IP` |
+| `DEPLOY_USER` (per environment, optional) | `DEPLOY_USER` (repo-level, optional) |
 | `DEPLOY_REGISTRY_TOKEN` | stays repo-level (shared) |
 | `TAILSCALE_OAUTH_*` | stays repo-level (shared) |
 
@@ -189,7 +185,8 @@ The workflow invokes the committed playbook with:
     ANSIBLE_HOST_KEY_CHECKING: "False"
   run: |
     ansible_user="${{ secrets.DEPLOY_USER || 'root' }}"
-    printf '[all]\n%s\n' "${{ secrets.SERVER_IP }}" > /tmp/inventory.yml
+    # server_ip selected via case/if on env_name
+    printf '[all]\n%s\n' "$server_ip" > /tmp/inventory.yml
     ansible-playbook -i /tmp/inventory.yml .github/deploy.yml \
       -e ansible_user="$ansible_user" \
       -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
@@ -200,8 +197,8 @@ The workflow invokes the committed playbook with:
       -e image_tag=${{ needs.prepare.outputs.image_tag_prefix }}-latest
 ```
 
-- **Inventory**: Dynamic, built from `SERVER_IP` environment secret written to `/tmp/inventory.yml`
-- **SSH key**: Written from `SSH_KEY` environment secret to `~/.ssh/id_rsa` in a prior step
+- **Inventory**: Dynamic, built from `PROD_TAILSCALE_IP`/`DEV_TAILSCALE_IP`/`TEST_TAILSCALE_IP` (selected via case/if) written to `/tmp/inventory.yml`
+- **SSH key**: Written from `PROD_SSH_KEY`/`DEV_SSH_KEY`/`TEST_SSH_KEY` (selected via case/if) to `~/.ssh/id_rsa` in a prior step
 - **Variables**: Passed as `-e` extra vars — `compose_src`, registry credentials, `traefik_host`, and `image_tag`
 - **DEPLOY_USER**: Falls back to `root` when the secret is not set
 
