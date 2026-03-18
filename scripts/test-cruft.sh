@@ -62,6 +62,7 @@ for name in "${TEMPLATES[@]}"; do
   # Ansible playbook validation (syntax + lint)
   deploy_yml="$proj/.github/deploy.yml"
   [ ! -f "$deploy_yml" ] && { echo "FAIL: $name: missing .github/deploy.yml"; exit 1; }
+  (cd "$proj" && git init -b main)  # Add project root marker so ansible-lint doesn't walk to /
   ansible-playbook -i localhost, --syntax-check "$deploy_yml" || { echo "FAIL: $name: ansible-playbook --syntax-check failed"; exit 1; }
   ansible-lint --profile min "$deploy_yml" || { echo "FAIL: $name: ansible-lint failed"; exit 1; }
   echo "  OK: $name"

@@ -100,7 +100,7 @@ Each template gets a language-appropriate test job with dependency caching.
 |----------|-------------|-------------|-------|
 | Go | `actions/setup-go@v6` | `go test ./...` | Go module cache (built-in) |
 | Node | `actions/setup-node@v6` + `pnpm/action-setup@v4` | `pnpm install --frozen-lockfile && pnpm test` | pnpm store (`pnpm/action-setup` built-in) |
-| Python | `astral-sh/setup-uv@v7` | `uv pip install --system -r requirements.txt && pytest` | uv cache (`setup-uv` built-in) |
+| Python | `astral-sh/setup-uv@v7` | `uv venv && uv pip install -r requirements.txt && uv run pytest` | uv cache (`setup-uv` built-in) |
 
 **Empty test suites**: Go exits 0 on "no test files". Node has a placeholder test script. Python uses `pytest || test $? -eq 5` to treat "no tests collected" (exit 5) as success.
 
