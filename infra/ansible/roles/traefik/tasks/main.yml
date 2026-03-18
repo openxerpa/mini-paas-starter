@@ -1,0 +1,25 @@
+---
+- name: Ensure Traefik deploy directory exists
+  ansible.builtin.file:
+    path: "{{ traefik_deploy_dir }}"
+    state: directory
+    mode: "0755"
+
+- name: Copy Traefik docker-compose.yml
+  ansible.builtin.copy:
+    src: "{{ traefik_src_dir }}/docker-compose.yml"
+    dest: "{{ traefik_deploy_dir }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Copy Traefik .env file
+  ansible.builtin.copy:
+    src: "{{ traefik_src_dir }}/.env"
+    dest: "{{ traefik_deploy_dir }}/.env"
+    mode: "0644"
+
+- name: Pull and start Traefik
+  ansible.builtin.shell:
+    cmd: docker compose pull && docker compose up -d
+    chdir: "{{ traefik_deploy_dir }}"
+  changed_when: false
+  when: not ansible_check_mode

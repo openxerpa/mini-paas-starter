@@ -1,0 +1,7 @@
+---
+# Master playbook - run full infrastructure setup
+# Usage: ansible-playbook -i inventory/production site.yml
+# Or: ansible-playbook -i inventory/staging site.yml
+- import_playbook: playbooks/bootstrap.yml
+- import_playbook: playbooks/traefik.yml
+- import_playbook: playbooks/tailscale.yml

@@ -17,10 +17,10 @@ A monorepo providing infrastructure configs and Cookiecutter/Cruft project templ
 
 ```bash
 cd infra/ansible
-ansible-playbook -i inventory/hosts.yml playbooks/bootstrap.yml -l production
+ansible-playbook -i inventory/production playbooks/bootstrap.yml
 ```
 
-Edit `inventory/hosts.yml` first: set `ansible_host` to your server's Tailscale IP.
+Edit `inventory/production/hosts.yml` first: set `ansible_host` to your server's Tailscale IP.
 
 ### 2. Configure Traefik
 
@@ -33,13 +33,13 @@ cp infra/traefik/.env.example infra/traefik/.env
 
 ```bash
 cd infra/ansible
-ansible-playbook -i inventory/hosts.yml playbooks/traefik.yml -l production
+ansible-playbook -i inventory/production playbooks/traefik.yml
 ```
 
 ### 4. (Optional) Join Tailscale on the server
 
 ```bash
-ansible-playbook -i inventory/hosts.yml playbooks/tailscale.yml -l production -e "tailscale_auth_key=tskey-..."
+ansible-playbook -i inventory/production playbooks/tailscale.yml -e "tailscale_auth_key=tskey-..."
 ```
 
 ### 5. Scaffold a new app
@@ -54,7 +54,7 @@ cruft create ./templates/go-service
 | Path | Description |
 |------|-------------|
 | `infra/traefik/` | Traefik v3 gateway (docker-compose, .env.example) |
-| `infra/ansible/` | Playbooks: bootstrap, tailscale, traefik, deploy-app |
+| `infra/ansible/` | Playbooks and roles: bootstrap, tailscale, traefik, deploy-app; `site.yml` for full infra |
 | `templates/go-service/` | Go service Cookiecutter template |
 | `templates/node-service/` | Node.js service Cookiecutter template |
 | `templates/nextjs-service/` | Next.js (App Router, TypeScript, Tailwind) Cookiecutter template |
@@ -66,9 +66,8 @@ cruft create ./templates/go-service
 From the scaffolded project:
 
 ```bash
-ansible-playbook -i /path/to/mini-paas-starter/infra/ansible/inventory/hosts.yml \
+ansible-playbook -i /path/to/mini-paas-starter/infra/ansible/inventory/production \
   /path/to/mini-paas-starter/infra/ansible/playbooks/deploy-app.yml \
-  -l production \
   -e "app_name=my-service compose_src=$(pwd)/docker-compose.yml gh_token=ghp_... deploy_registry_user=your-github-username"
 ```
 

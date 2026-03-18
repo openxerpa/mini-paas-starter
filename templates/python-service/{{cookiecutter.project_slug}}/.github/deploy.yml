@@ -1,5 +1,6 @@
 ---
-- hosts: all
+- name: Deploy application to server
+  hosts: all
   become: true
   vars:
     deploy_dir: /opt/apps/{{ cookiecutter.project_slug }}
@@ -32,12 +33,14 @@
       ansible.builtin.command:
         cmd: docker login {{ cookiecutter.docker_registry }} -u {% raw %}{{ deploy_registry_user }}{% endraw %} -p {% raw %}{{ deploy_registry_token }}{% endraw %}
       no_log: true
+      changed_when: false
       when: {% raw %}deploy_registry_token | default('', true) | length > 0{% endraw %}
 
     - name: Pull and start containers
       ansible.builtin.shell:
         cmd: docker compose pull && docker compose up -d
         chdir: "{% raw %}{{ deploy_dir }}{% endraw %}"
+      changed_when: false
 
     - name: Wait for containers to start
       ansible.builtin.pause:
@@ -48,4 +51,5 @@
         cmd: docker compose ps
         chdir: "{% raw %}{{ deploy_dir }}{% endraw %}"
       register: compose_ps
+      changed_when: false
       failed_when: "'running' not in compose_ps.stdout"

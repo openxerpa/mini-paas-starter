@@ -1,0 +1,35 @@
+---
+- name: Validate required variables
+  ansible.builtin.assert:
+    that:
+      - app_name | length > 0
+      - compose_src | length > 0
+      - gh_token | length > 0
+      - deploy_registry_user | length > 0
+    fail_msg: "Required vars must be set via -e: app_name, compose_src, gh_token, deploy_registry_user"
+
+- name: Ensure app deploy directory exists
+  ansible.builtin.file:
+    path: "{{ deploy_base_dir }}/{{ app_name }}"
+    state: directory
+    mode: "0755"
+
+- name: Copy docker-compose.yml to server
+  ansible.builtin.copy:
+    src: "{{ compose_src }}"
+    dest: "{{ deploy_base_dir }}/{{ app_name }}/docker-compose.yml"
+    mode: "0644"
+
+- name: Login to container registry
+  ansible.builtin.command:
+    cmd: docker login {{ docker_registry }} -u {{ deploy_registry_user }} -p {{ gh_token }}
+  no_log: true
+  changed_when: false
+  when: not ansible_check_mode
+
+- name: Pull and start application
+  ansible.builtin.shell:
+    cmd: docker compose pull && docker compose up -d
+    chdir: "{{ deploy_base_dir }}/{{ app_name }}"
+  changed_when: false
+  when: not ansible_check_mode

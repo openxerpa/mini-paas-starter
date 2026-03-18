@@ -1,0 +1,4 @@
+---
+# Resolves to infra/traefik whether run via site.yml (playbook_dir=ansible/) or playbooks/traefik.yml (playbook_dir=ansible/playbooks/)
+traefik_src_dir: "{{ (playbook_dir | regex_replace('/playbooks$', '')) }}/../traefik"
+traefik_deploy_dir: /opt/traefik

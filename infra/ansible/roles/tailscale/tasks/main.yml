@@ -1,0 +1,54 @@
+---
+- name: Ensure apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: "0755"
+  when: ansible_os_family == "Debian"
+
+- name: Install Tailscale apt repository key
+  ansible.builtin.get_url:
+    url: https://pkgs.tailscale.com/stable/ubuntu/{{ ansible_distribution_release }}.gpg
+    dest: /etc/apt/keyrings/tailscale.gpg
+    mode: "0644"
+  when: ansible_os_family == "Debian"
+
+- name: Add Tailscale apt repository
+  ansible.builtin.apt_repository:
+    repo: "deb [signed-by=/etc/apt/keyrings/tailscale.gpg] https://pkgs.tailscale.com/stable/ubuntu {{ ansible_distribution_release }} main"
+    state: present
+    filename: tailscale
+  when: ansible_os_family == "Debian"
+
+- name: Install Tailscale
+  ansible.builtin.apt:
+    name: tailscale
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Enable IP forwarding
+  ansible.builtin.sysctl:
+    name: net.ipv4.ip_forward
+    value: "1"
+    state: present
+  when: ansible_os_family == "Debian"
+
+- name: Authenticate Tailscale with auth key
+  ansible.builtin.command:
+    cmd: tailscale up --authkey={{ tailscale_auth_key }}
+  when:
+    - tailscale_auth_key | length > 0
+    - not ansible_check_mode
+  no_log: true
+  changed_when: false
+
+- name: Verify Tailscale connectivity
+  ansible.builtin.command: tailscale status
+  register: tailscale_status
+  changed_when: false
+
+- name: Fail if Tailscale not connected
+  ansible.builtin.fail:
+    msg: "Tailscale is not connected. Check tailscale_auth_key and network."
+  when: "'offline' in tailscale_status.stdout or tailscale_status.rc != 0"

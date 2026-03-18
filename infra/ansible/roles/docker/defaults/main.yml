@@ -1,0 +1,4 @@
+---
+docker_log_max_size: 50m
+docker_log_max_file: "3"
+deploy_base_dir: /opt/apps
