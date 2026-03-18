@@ -4,6 +4,12 @@ A monorepo providing infrastructure configs and Cookiecutter/Cruft project templ
 
 **Target audience:** Small teams who want to deploy services quickly without Kubernetes or costly managed services.
 
+![Mini PaaS Starter Architecture](https://github.com/user-attachments/assets/395dc916-dd1c-4885-97b9-d67849227a88)
+
+External services use host-based routing. Domain format: `{slug}.{env}.{base_domain}`
+
+![Domain structure](https://github.com/user-attachments/assets/793d41de-bb6b-4a8b-80c6-9183ef751c92)
+
 ## Prerequisites
 
 - [Docker](https://docs.docker.com/get-docker/) & Docker Compose
