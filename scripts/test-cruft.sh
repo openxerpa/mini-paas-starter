@@ -69,6 +69,9 @@ for name in "${TEMPLATES[@]}"; do
 done
 
 echo "=== Update tests ==="
+# Ensure git identity for commits (required in CI, harmless locally)
+git config user.email "cruft-test@localhost"
+git config user.name "Cruft Test"
 for name in "${TEMPLATES[@]}"; do
   echo "Testing update: $name"
   out_dir="$TEST_DIR/$name"
