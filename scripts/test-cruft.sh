@@ -77,8 +77,11 @@ for name in "${TEMPLATES[@]}"; do
   out_dir="$TEST_DIR/$name"
   proj="$out_dir/my-service"
   cd "$proj"
+  git config user.email "cruft-test@localhost"
+  git config user.name "Cruft Test"
   rm -f .cruft.json
   cruft link "file://$REPO_ROOT" --directory "templates/$name" --no-input
+  git add -A && git commit -m "chore: link to template"  # Clean tree required by cruft update
   MARKER_PATH="templates/${name}/{{cookiecutter.project_slug}}/.cruft-test-marker"
   echo "cruft-update-test" > "$REPO_ROOT/$MARKER_PATH"
   (cd "$REPO_ROOT" && git add "$MARKER_PATH" && git commit -m "temp: cruft test marker")
