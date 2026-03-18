@@ -37,7 +37,7 @@ Keep these repo-level (shared): `DEPLOY_REGISTRY_TOKEN`, `TAILSCALE_OAUTH_CLIENT
 
 ### Emergency deploy
 
-For rollback or deploying a specific image tag without rebuilding: **Actions** → **Emergency Deploy** → **Run workflow**.
+For rollback or deploying a specific image tag without rebuilding: **Actions** → **Manual Deploy** → **Run workflow**.
 
 | Input | Description |
 |-------|-------------|

@@ -1,6 +1,6 @@
-### Requirement: Emergency deploy workflow triggers on manual dispatch only
+### Requirement: Manual deploy workflow triggers on manual dispatch only
 
-The generated templates SHALL include `.github/workflows/emergency-deploy.yml` that triggers only on `workflow_dispatch`. The workflow SHALL NOT trigger on push or any other event.
+The generated templates SHALL include `.github/workflows/manual-deploy.yml` that triggers only on `workflow_dispatch`. The workflow SHALL NOT trigger on push or any other event.
 
 #### Scenario: Manual trigger runs workflow
 
@@ -8,15 +8,15 @@ The generated templates SHALL include `.github/workflows/emergency-deploy.yml` t
 - **THEN** the workflow runs
 - **AND** no automatic trigger (push, schedule, etc.) starts the workflow
 
-#### Scenario: Push does not trigger emergency deploy
+#### Scenario: Push does not trigger manual deploy
 
 - **WHEN** code is pushed to any branch
-- **THEN** the emergency-deploy workflow does NOT run
+- **THEN** the manual-deploy workflow does NOT run
 - **AND** only the main ci-cd workflow may run (per its own triggers)
 
-### Requirement: Emergency deploy accepts image tag and target environment
+### Requirement: Manual deploy accepts image tag and target environment
 
-The emergency-deploy workflow SHALL accept two required inputs: `image_tag` (string, the Docker image tag to deploy, e.g. `v1.0.0` or `dev-latest`) and `target_env` (string or choice: `production`, `dev`, `test`, or `dev-<username>` for developer environments, e.g. `dev-alice`, `dev-bob`).
+The manual-deploy workflow SHALL accept two required inputs: `image_tag` (string, the Docker image tag to deploy, e.g. `v1.0.0` or `dev-latest`) and `target_env` (string or choice: `production`, `dev`, `test`, or `dev-<username>` for developer environments, e.g. `dev-alice`, `dev-bob`).
 
 #### Scenario: User provides inputs
 
@@ -36,7 +36,7 @@ The emergency-deploy workflow SHALL accept two required inputs: `image_tag` (str
 - **THEN** the deploy job selects `DEV_TAILSCALE_IP` and `DEV_SSH_KEY` (shared dev server)
 - **AND** secrets are repo-level, not environment-scoped
 
-### Requirement: Emergency deploy resolves traefik_host and deploy_dir from target_env
+### Requirement: Manual deploy resolves traefik_host and deploy_dir from target_env
 
 The workflow SHALL map `target_env` to `traefik_host` and `deploy_dir` per the routing convention `{app}.{env}.domain.com`:
 
@@ -63,9 +63,9 @@ The workflow SHALL map `target_env` to `traefik_host` and `deploy_dir` per the r
 - **THEN** `traefik_host` is `<slug>-alice.dev.<base_domain_dev>`
 - **AND** `deploy_dir` is `/opt/apps/<slug>-dev-alice`
 
-### Requirement: Emergency deploy runs deploy-only (no build, no test)
+### Requirement: Manual deploy runs deploy-only (no build, no test)
 
-The emergency-deploy workflow SHALL run only the deploy step. It SHALL NOT run test or build-and-push jobs. It SHALL use the existing `.github/deploy.yml` playbook and pass the user-provided `image_tag` to the playbook.
+The manual-deploy workflow SHALL run only the deploy step. It SHALL NOT run test or build-and-push jobs. It SHALL use the existing `.github/deploy.yml` playbook and pass the user-provided `image_tag` to the playbook.
 
 #### Scenario: Deploy uses existing image
 
