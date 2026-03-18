@@ -120,6 +120,7 @@ jobs:
         uses: astral-sh/setup-uv@v7
         with:
           enable-cache: true
+          cache-suffix: ansible
 
       - name: Install Ansible
         run: uv tool install ansible-core --with ansible
