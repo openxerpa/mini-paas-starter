@@ -36,6 +36,11 @@
       changed_when: false
       when: {% raw %}deploy_registry_token | default('', true) | length > 0{% endraw %}
 
+    - name: Fail if DEPLOY_REGISTRY_TOKEN missing for ghcr.io
+      ansible.builtin.fail:
+        msg: "DEPLOY_REGISTRY_TOKEN is required for ghcr.io private images. Add it in Settings → Secrets → Actions."
+      when: {% raw %}(deploy_registry_token | default('', true) | length == 0) and (docker_registry == 'ghcr.io'){% endraw %}
+
     - name: Pull and start containers
       ansible.builtin.shell:
         cmd: docker compose pull && docker compose up -d

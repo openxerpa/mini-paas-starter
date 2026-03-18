@@ -1,5 +1,5 @@
 # Build stage
-FROM ghcr.io/astral-sh/uv:python3.14-dhi AS builder
+FROM ghcr.io/astral-sh/uv:python3.14-alpine AS builder
 WORKDIR /app
 COPY requirements.txt ./
 RUN uv pip install --no-cache -r requirements.txt --target /app/packages 2>/dev/null || true

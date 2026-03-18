@@ -40,7 +40,7 @@ Infra usually configures these at org or repo level. Confirm your repo has:
 - `TAILSCALE_OAUTH_CLIENT_ID` and `TAILSCALE_OAUTH_SECRET` — create an [OAuth client](https://tailscale.com/s/oauth-clients) with `auth_keys` scope and tag `tag:ci`
 - Per-env: `PROD_TAILSCALE_IP`, `PROD_SSH_KEY` (main); `DEV_TAILSCALE_IP`, `DEV_SSH_KEY` (dev); `TEST_TAILSCALE_IP`, `TEST_SSH_KEY` (test). These IP variables must be the target server's Tailscale IP (100.x.x.x). Do not use public IPs.
 - `DEPLOY_USER` (optional; defaults to `root`)
-- `DEPLOY_REGISTRY_TOKEN` (optional; required only for private images; GitHub PAT with `read:packages` for ghcr.io)
+- `DEPLOY_REGISTRY_TOKEN` (optional; required for private ghcr.io images) — see [DEPLOY_REGISTRY_TOKEN setup](deploy-registry-token.md)
 
 If you need project-specific vars (e.g. `DATABASE_URL`), add them in **Settings → Secrets and variables → Actions**.
 
