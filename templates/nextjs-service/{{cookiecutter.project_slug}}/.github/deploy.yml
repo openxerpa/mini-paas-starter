@@ -4,6 +4,7 @@
   become: true
   vars:
     deploy_dir: /opt/apps/{{ cookiecutter.project_slug }}
+    ansible_python_interpreter: /usr/bin/python3
     docker_registry: {{ cookiecutter.docker_registry }}
     compose_src: ""
     traefik_host: ""
