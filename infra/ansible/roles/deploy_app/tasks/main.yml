@@ -14,10 +14,10 @@
     state: directory
     mode: "0755"
 
-- name: Copy docker-compose.yml to server
+- name: Copy compose.yaml to server
   ansible.builtin.copy:
     src: "{{ compose_src }}"
-    dest: "{{ deploy_base_dir }}/{{ app_name }}/docker-compose.yml"
+    dest: "{{ deploy_base_dir }}/{{ app_name }}/compose.yaml"
     mode: "0644"
 
 - name: Login to container registry

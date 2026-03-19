@@ -41,10 +41,10 @@ fi
 
 # Required files per template (relative to my-service/)
 declare -A REQUIRED_FILES
-REQUIRED_FILES[go-service]="go.mod Dockerfile docker-compose.yml .cruft.json .env.example"
-REQUIRED_FILES[node-service]="package.json Dockerfile docker-compose.yml .cruft.json .env.example"
-REQUIRED_FILES[python-service]="requirements.txt Dockerfile docker-compose.yml .cruft.json .env.example"
-REQUIRED_FILES[nextjs-service]="package.json Dockerfile docker-compose.yml .cruft.json .env.example"
+REQUIRED_FILES[go-service]="go.mod Dockerfile compose.yaml .cruft.json .env.example"
+REQUIRED_FILES[node-service]="package.json Dockerfile compose.yaml .cruft.json .env.example"
+REQUIRED_FILES[python-service]="requirements.txt Dockerfile compose.yaml .cruft.json .env.example"
+REQUIRED_FILES[nextjs-service]="package.json Dockerfile compose.yaml .cruft.json .env.example"
 
 TEMPLATES=(go-service node-service python-service nextjs-service)
 

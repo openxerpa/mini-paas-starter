@@ -59,7 +59,7 @@ cruft create ./templates/go-service
 
 | Path | Description |
 |------|-------------|
-| `infra/traefik/` | Traefik v3 gateway (docker-compose, .env.example) |
+| `infra/traefik/` | Traefik v3 gateway (compose.yaml, .env.example) |
 | `infra/ansible/` | Playbooks and roles: bootstrap, tailscale, traefik, deploy-app; `site.yml` for full infra |
 | `templates/go-service/` | Go service Cookiecutter template |
 | `templates/node-service/` | Node.js service Cookiecutter template |
@@ -74,7 +74,7 @@ From the scaffolded project:
 ```bash
 ansible-playbook -i /path/to/mini-paas-starter/infra/ansible/inventory/production \
   /path/to/mini-paas-starter/infra/ansible/playbooks/deploy-app.yml \
-  -e "app_name=my-service compose_src=$(pwd)/docker-compose.yml gh_token=ghp_... deploy_registry_user=your-github-username"
+  -e "app_name=my-service compose_src=$(pwd)/compose.yaml gh_token=ghp_... deploy_registry_user=your-github-username"
 ```
 
 Or push to `main` and let CI/CD handle it (requires GitHub secrets).

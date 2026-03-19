@@ -5,10 +5,10 @@
     state: directory
     mode: "0755"
 
-- name: Copy Traefik docker-compose.yml
+- name: Copy Traefik compose.yaml
   ansible.builtin.copy:
-    src: "{{ traefik_src_dir }}/docker-compose.yml"
-    dest: "{{ traefik_deploy_dir }}/docker-compose.yml"
+    src: "{{ traefik_src_dir }}/compose.yaml"
+    dest: "{{ traefik_deploy_dir }}/compose.yaml"
     mode: "0644"
 
 - name: Copy Traefik .env file

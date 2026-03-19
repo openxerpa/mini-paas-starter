@@ -1,12 +1,11 @@
 services:
   app:
     image: {{ cookiecutter.docker_registry }}/{{ cookiecutter.github_org }}/{{ cookiecutter.project_slug }}:${IMAGE_TAG:-latest}
-    build: .
+    restart: unless-stopped
+    pull_policy: always
     environment:
       - PORT={{ cookiecutter.service_port }}
 {% if cookiecutter.service_type == "external" %}
-    ports:
-      - "{{ cookiecutter.service_port }}:{{ cookiecutter.service_port }}"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.{{ cookiecutter.project_slug }}.rule=Host(`${TRAEFIK_HOST}`)"
@@ -15,10 +14,30 @@ services:
 {% else %}
     container_name: {{ cookiecutter.project_slug }}
 {% endif %}
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://127.0.0.1:{{ cookiecutter.service_port }}/',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    read_only: true
+    tmpfs:
+      - /tmp
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
     deploy:
       resources:
         limits:
           memory: {{ cookiecutter.memory_limit }}
+          cpus: "1.0"
     networks:
       - webgateway
 

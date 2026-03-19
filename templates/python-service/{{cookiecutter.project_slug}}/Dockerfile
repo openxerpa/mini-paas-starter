@@ -2,7 +2,7 @@
 FROM ghcr.io/astral-sh/uv:python3.14-alpine AS builder
 WORKDIR /app
 COPY requirements.txt ./
-RUN uv pip install --no-cache -r requirements.txt --target /app/packages 2>/dev/null || true
+RUN uv pip install --no-cache -r requirements.txt --target /app/packages
 
 # Runtime stage
 FROM gcr.io/distroless/python3-debian13:nonroot

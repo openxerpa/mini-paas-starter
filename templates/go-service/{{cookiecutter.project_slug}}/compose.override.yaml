@@ -1,0 +1,4 @@
+# Development overrides: use local build instead of registry image
+services:
+  app:
+    build: .

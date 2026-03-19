@@ -166,7 +166,7 @@ jobs:
           ansible-playbook -i /tmp/inventory.yml .github/deploy.yml \
             -e ansible_user="$ansible_user" \
             -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
-            -e compose_src=$GITHUB_WORKSPACE/docker-compose.yml \
+            -e compose_src=$GITHUB_WORKSPACE/compose.yaml \
             -e deploy_registry_user={% raw %}${{ github.repository_owner }}{% endraw %} \
             -e deploy_registry_token={% raw %}${{ secrets.DEPLOY_REGISTRY_TOKEN }}{% endraw %} \
             -e traefik_host={% raw %}${{ needs.prepare.outputs.traefik_host }}{% endraw %} \

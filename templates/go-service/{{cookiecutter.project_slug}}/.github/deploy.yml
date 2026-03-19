@@ -16,10 +16,10 @@
         state: directory
         mode: "0755"
 
-    - name: Copy docker-compose.yml
+    - name: Copy compose.yaml
       ansible.builtin.copy:
         src: "{% raw %}{{ compose_src }}{% endraw %}"
-        dest: "{% raw %}{{ deploy_dir }}{% endraw %}/docker-compose.yml"
+        dest: "{% raw %}{{ deploy_dir }}{% endraw %}/compose.yaml"
         mode: "0644"
 
     - name: Write .env
