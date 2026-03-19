@@ -11,6 +11,19 @@ on:
         description: 'Target environment (production, dev, test, or dev-<username> e.g. dev-alice)'
         required: true
         type: string
+      replicas:
+        description: 'Number of replicas (default: 1)'
+        required: false
+        type: number
+        default: 1
+      deploy_memory:
+        description: 'Memory limit (e.g. 512M, 1.5G)'
+        required: false
+        type: string
+      deploy_cpus:
+        description: 'CPU limit (e.g. 1.0, 1.5)'
+        required: false
+        type: string
 
 jobs:
   prepare:
@@ -115,12 +128,16 @@ jobs:
               ;;
           esac
           printf '[all]\n%s\n' "$server_ip" > /tmp/inventory.yml
+          extra_vars="-e replicas={% raw %}${{ inputs.replicas || 1 }}{% endraw %}"
+          [ -n "{% raw %}${{ inputs.deploy_memory }}{% endraw %}" ] && extra_vars="$extra_vars -e deploy_memory={% raw %}${{ inputs.deploy_memory }}{% endraw %}"
+          [ -n "{% raw %}${{ inputs.deploy_cpus }}{% endraw %}" ] && extra_vars="$extra_vars -e deploy_cpus={% raw %}${{ inputs.deploy_cpus }}{% endraw %}"
           ansible-playbook -i /tmp/inventory.yml .github/deploy.yml \
             -e ansible_user="$ansible_user" \
             -e ansible_ssh_private_key_file=~/.ssh/id_rsa \
-            -e compose_src=$GITHUB_WORKSPACE/docker-compose.yml \
+            -e compose_src=$GITHUB_WORKSPACE/compose.yaml \
             -e deploy_registry_user={% raw %}${{ github.repository_owner }}{% endraw %} \
             -e deploy_registry_token={% raw %}${{ secrets.DEPLOY_REGISTRY_TOKEN }}{% endraw %} \
             -e traefik_host={% raw %}${{ needs.prepare.outputs.traefik_host }}{% endraw %} \
             -e image_tag={% raw %}${{ inputs.image_tag }}{% endraw %} \
-            -e deploy_dir={% raw %}${{ needs.prepare.outputs.deploy_dir }}{% endraw %}
+            -e deploy_dir={% raw %}${{ needs.prepare.outputs.deploy_dir }}{% endraw %} \
+            $extra_vars

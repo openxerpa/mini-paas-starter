@@ -26,7 +26,11 @@
       ansible.builtin.copy:
         content: |
           TRAEFIK_HOST={% raw %}{{ traefik_host }}{% endraw %}
-          IMAGE_TAG={% raw %}{{ image_tag }}{% endraw %}
+          IMAGE_TAG={% raw %}{{ image_tag }}{% endraw %}{% raw %}
+          {% if deploy_memory is defined and deploy_memory | length > 0 %}
+          DEPLOY_MEMORY={{ deploy_memory }}{% endif %}{% if deploy_cpus is defined and deploy_cpus | length > 0 %}
+          DEPLOY_CPUS={{ deploy_cpus }}{% endif %}
+          {% endraw %}
         dest: "{% raw %}{{ deploy_dir }}{% endraw %}/.env"
         mode: "0644"
 
@@ -44,7 +48,7 @@
 
     - name: Pull and start containers
       ansible.builtin.shell:
-        cmd: docker compose pull && docker compose up -d
+        cmd: docker compose pull && docker compose up -d --scale app={% raw %}{{ replicas | default(1) }}{% endraw %}
         chdir: "{% raw %}{{ deploy_dir }}{% endraw %}"
       changed_when: false
 

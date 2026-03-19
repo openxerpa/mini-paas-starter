@@ -13,7 +13,8 @@
       "base_domain_dev": "{{ cookiecutter.base_domain_dev }}",
       "base_domain_test": "{{ cookiecutter.base_domain_test }}",
       "base_domain_prod": "{{ cookiecutter.base_domain_prod }}",
-      "memory_limit": "{{ cookiecutter.memory_limit }}"
+      "memory_limit": "{{ cookiecutter.memory_limit }}",
+      "cpus_default": "{{ cookiecutter.cpus_default }}"
     }
   },
   "directory": "templates/node-service",

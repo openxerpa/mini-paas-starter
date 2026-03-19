@@ -5,6 +5,7 @@ services:
     pull_policy: always
     environment:
       - PORT={{ cookiecutter.service_port }}
+      - GOMEMLIMIT=${GOMEMLIMIT:-1280MiB}
 {% if cookiecutter.service_type == "external" %}
     labels:
       - "traefik.enable=true"
@@ -36,8 +37,11 @@ services:
     deploy:
       resources:
         limits:
-          memory: {{ cookiecutter.memory_limit }}
-          cpus: "1.0"
+          memory: ${DEPLOY_MEMORY:-{{ cookiecutter.memory_limit }}}
+          cpus: "${DEPLOY_CPUS:-{{ cookiecutter.cpus_default }}}"
+        reservations:
+          memory: 256M
+          cpus: "0.5"
     networks:
       - webgateway
 
